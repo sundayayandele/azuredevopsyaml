@@ -1,0 +1,31 @@
+trigger:
+- '*'
+
+pr:
+- '*'
+
+pr: 'refs/pull/*'
+
+jobs:
+- job: DownloadLogs
+  steps:
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      buildType: 'pipeline'
+      project: 'YourProjectName'
+      definition: 'PipelineDefinitionName' # Replace with the name of the pipeline you want to download logs from
+      buildVersion: $(Build.BuildId)
+      targetPath: '$(System.ArtifactsDirectory)/logs' # Define the directory to save the log files
+      buildTypeSelect: 'current'
+
+  - script: |
+      # Compress the log files into a single ZIP archive
+      cd $(System.ArtifactsDirectory)/logs
+      zip -r log_files.zip .
+      echo "Log files zipped successfully."
+    displayName: 'Zip Log Files'
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: '$(System.ArtifactsDirectory)/logs/log_files.zip'
+      artifact: 'log-artifact'
