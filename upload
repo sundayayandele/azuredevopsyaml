@@ -1,0 +1,44 @@
+jobs:
+- job: OuterJob
+  pool:
+    vmImage: 'ubuntu-latest'
+  parameters:
+    outerParam1: ${{ parameters.outerParam1 }}
+    outerParam2: ${{ parameters.outerParam2 }}
+  steps:
+  - template: inner.yaml
+    parameters:
+      innerParam1: ${{ parameters.outerParam1 }}
+      innerParam2: ${{ parameters.outerParam2 }}
+
+
+parameters:
+  innerParam1: ''
+  innerParam2: ''
+
+jobs:
+- job: InnerJob
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - script: |
+      echo "Inner Parameter 1: ${{ parameters.innerParam1 }}"
+      echo "Inner Parameter 2: ${{ parameters.innerParam2 }}"
+
+
+
+  parameters:
+  innerParam1: ''
+  innerParam2: ''
+
+jobs:
+- job: InnerJob
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - script: |
+      echo "Inner Parameter 1: ${{ parameters.innerParam1 }}"
+      echo "Inner Parameter 2: ${{ parameters.innerParam2 }}"
+
+
+  
