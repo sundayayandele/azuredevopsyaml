@@ -1,6 +1,87 @@
 from atlassian import Confluence
 import os
 import markdown2
+from bs4 import BeautifulSoup
+
+def read_md_file(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return file.read()
+
+def convert_to_confluence_storage_format(md_content):
+    # Convert Markdown to HTML
+    html_content = markdown2.markdown(md_content)
+
+    # Parse the HTML content using BeautifulSoup
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    # Convert HTML elements to Confluence storage format
+    confluence_content = ''
+    for element in soup.children:
+        if element.name == 'h1':
+            confluence_content += f'h1. {element.text}\n'
+        elif element.name == 'h2':
+            confluence_content += f'h2. {element.text}\n'
+        elif element.name == 'h3':
+            confluence_content += f'h3. {element.text}\n'
+        elif element.name == 'h4':
+            confluence_content += f'h4. {element.text}\n'
+        elif element.name == 'h5':
+            confluence_content += f'h5. {element.text}\n'
+        elif element.name == 'h6':
+            confluence_content += f'h6. {element.text}\n'
+        elif element.name == 'p':
+            confluence_content += f'{element.text}\n'
+        elif element.name == 'ul':
+            for li in element.find_all('li'):
+                confluence_content += f'* {li.text}\n'
+        elif element.name == 'ol':
+            for i, li in enumerate(element.find_all('li'), start=1):
+                confluence_content += f'# {i}. {li.text}\n'
+        elif element.name == 'hr':
+            confluence_content += '----\n'
+        elif element.name == 'a':
+            confluence_content += f'[{element.text}|{element.get("href")}]\n'
+        elif element.name == 'img':
+            confluence_content += f'!{element.get("src")}!\n'
+
+    return confluence_content
+
+def main():
+    # Assuming your Azure repo file path is stored in a variable like azure_repo_file_path
+    azure_repo_file_path = "/path/to/azure/repo/file.md"
+
+    # Read content from the Azure repo file
+    md_content = read_md_file(azure_repo_file_path)
+
+    # Convert Markdown content to Confluence storage format
+    confluence_content = convert_to_confluence_storage_format(md_content)
+
+    # Initialize Confluence connection
+    confluence = Confluence(
+        url="http://localhost:8090",
+        username="admin",
+        password="admin"
+    )
+
+    # Update Confluence page with the new body content
+    status = confluence.update_page(
+        parent_id=None,  # Provide parent_id if it's a child page
+        page_id=123456,  # Provide the ID of the page you want to update
+        title="This is the new title",
+        body=confluence_content,  # Pass the content in Confluence storage format
+    )
+
+    # Print the status
+    print(status)
+
+if __name__ == "__main__":
+    main()
+
+
+====================================================================================================================
+from atlassian import Confluence
+import os
+import markdown2
 import xml.etree.ElementTree as ET
 
 def read_md_file(file_path):
