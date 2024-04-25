@@ -1,0 +1,10 @@
+task_details:
+  azure_repo_name: "YOUR_AZURE_REPO_NAME"
+  azure_pat: "YOUR_AZURE_PERSONAL_ACCESS_TOKEN"
+  repo_file_path: "readme.md"
+  confluence_url: "YOUR_CONFLUENCE_URL"
+  confluence_username: "YOUR_CONFLUENCE_USERNAME"
+  confluence_password: "YOUR_CONFLUENCE_PASSWORD"
+  space_key: "YOUR_SPACE_KEY"
+  parent_page_id: "YOUR_PARENT_PAGE_ID"
+  confluence_page_title: "readme"
