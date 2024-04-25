@@ -8,3 +8,15 @@ task_details:
   space_key: "YOUR_SPACE_KEY"
   parent_page_id: "YOUR_PARENT_PAGE_ID"
   confluence_page_title: "readme"
+
+  NEW Data:
+
+script_to_call: copy_azure_to_confluence.py
+azure_repo_file_path: /path/to/azure/repo/readme.md
+confluence_space_key: YOUR_SPACE_KEY
+confluence_parent_page_id: YOUR_PARENT_PAGE_ID
+confluence_page_title: readme
+confluence_username: YOUR_CONFLUENCE_USERNAME
+confluence_password: YOUR_CONFLUENCE_PASSWORD
+confluence_url: YOUR_CONFLUENCE_URL
+
