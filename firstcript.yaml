@@ -9,8 +9,7 @@ task_details:
   parent_page_id: "YOUR_PARENT_PAGE_ID"
   confluence_page_title: "readme"
 
-  NEW Data:
-
+##Script 1: YAML File (call_script.yaml)
 script_to_call: copy_azure_to_confluence.py
 azure_repo_file_path: /path/to/azure/repo/readme.md
 confluence_space_key: YOUR_SPACE_KEY
