@@ -8,6 +8,38 @@ status = confluence.update_page(
     title="This is the new title",
     body="This is the new body",
 )
+======================================
+
+from atlassian import Confluence
+import os
+
+def read_md_file(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return file.read()
+
+# Assuming your Azure repo file path is stored in a variable like azure_repo_file_path
+azure_repo_file_path = "/path/to/azure/repo/file.md"
+
+# Read content from the Azure repo file
+md_content = read_md_file(azure_repo_file_path)
+
+# Initialize Confluence connection
+confluence = Confluence(
+    url="http://localhost:8090",
+    username="admin",
+    password="admin"
+)
+
+# Update Confluence page with the new body content
+status = confluence.update_page(
+    parent_id=None,  # Provide parent_id if it's a child page
+    page_id=123456,  # Provide the ID of the page you want to update
+    title="This is the new title",
+    body=md_content,  # Pass the content of the Azure repo file as the body
+)
+
+# Print the status
+print(status)
 
 
 
