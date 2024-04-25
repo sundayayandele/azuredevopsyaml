@@ -1,3 +1,13 @@
+def convert_to_confluence_storage_format(md_content):
+    # Convert Markdown to HTML
+    html_content = markdown2.markdown(md_content)
+
+    # Wrap HTML content with Confluence storage format tags
+    confluence_content = '<ac:structured-macro ac:name="html"><ac:plain-text-body><![CDATA[' + html_content + ']]></ac:plain-text-body></ac:structured-macro>'
+
+    return confluence_content
+
+===============================================
 from atlassian import Confluence
 
 confluence = Confluence(url="http://localhost:8090", username="admin", password="admin")
