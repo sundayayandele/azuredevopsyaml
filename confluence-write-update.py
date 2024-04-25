@@ -1,5 +1,3 @@
-#Script 2: Python Script (copy_azure_to_confluence.py)
-
 import yaml
 from atlassian import Confluence
 import os
@@ -8,31 +6,40 @@ def read_md_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         return file.read()
 
-def create_confluence_page(confluence, space_key, parent_page_id, title, content):
-    page_data = {
-        'type': 'page',
-        'title': title,
-        'space': {'key': space_key},
-        'ancestors': [{'id': parent_page_id}],
-        'body': {
-            'storage': {
-                'value': content,
-                'representation': 'storage'
+def create_or_update_confluence_page(confluence, space_key, parent_page_title, title, content):
+    parent_page = confluence.get_page_by_title(space_key, parent_page_title)
+    if not parent_page:
+        raise Exception(f"Parent page '{parent_page_title}' not found in space '{space_key}'")
+    
+    page = confluence.get_page_by_title(space_key, title)
+    if page:
+        confluence.update_page(page['id'], title, content, minor_edit=False)
+        print("Page updated successfully:", page['id'])
+    else:
+        page_data = {
+            'type': 'page',
+            'title': title,
+            'space': {'key': space_key},
+            'ancestors': [{'id': parent_page['id']}],
+            'body': {
+                'storage': {
+                    'value': content,
+                    'representation': 'storage'
+                }
             }
         }
-    }
-    return confluence.create_content(content=page_data)
+        page_creation_response = confluence.create_content(content=page_data)
+        print("Page created successfully:", page_creation_response['id'])
 
 def main():
     # Load YAML configuration
     with open('call_script.yaml', 'r') as yaml_file:
         config = yaml.safe_load(yaml_file)
 
-    # Define Confluence connection
+    # Define Confluence connection using API token
     confluence = Confluence(
         url=config['confluence_url'],
-        username=config['confluence_username'],
-        password=config['confluence_password']
+        token=config['confluence_token']
     )
 
     # Read content from Azure repo file
@@ -40,17 +47,11 @@ def main():
 
     # Define Confluence page details
     space_key = config['confluence_space_key']
-    parent_page_id = config['confluence_parent_page_id']
+    parent_page_title = config['confluence_parent_page_title']
     page_title = config['confluence_page_title']
 
-    # Check if the page already exists, if so, delete it
-    existing_page = confluence.get_page_by_title(space_key, page_title)
-    if existing_page:
-        confluence.remove_page(existing_page['id'])
-
-    # Create the Confluence page
-    page_creation_response = create_confluence_page(confluence, space_key, parent_page_id, page_title, md_content)
-    print("Page created successfully:", page_creation_response['id'])
+    # Create or update the Confluence page
+    create_or_update_confluence_page(confluence, space_key, parent_page_title, page_title, md_content)
 
 if __name__ == "__main__":
     main()
