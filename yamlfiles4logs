@@ -1,3 +1,54 @@
+from atlassian import Confluence
+import os
+import re
+
+def read_md_file(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return file.read()
+
+def convert_to_confluence_storage_format(md_content):
+    # Convert Markdown to Confluence storage format
+    # Convert headers
+    md_content = re.sub(r'^(#+)(.*)$', lambda match: f'h{len(match.group(1))}.{match.group(2)}', md_content, flags=re.MULTILINE)
+
+    # Convert lists
+    md_content = re.sub(r'^(\s*)\*(.*)$', lambda match: f'{match.group(1)}* {match.group(2)}', md_content, flags=re.MULTILINE)
+    md_content = re.sub(r'^(\s*)-(.*)$', lambda match: f'{match.group(1)}* {match.group(2)}', md_content, flags=re.MULTILINE)
+
+    return md_content
+
+def main():
+    # Assuming your Azure repo file path is stored in a variable like azure_repo_file_path
+    azure_repo_file_path = "/path/to/azure/repo/file.md"
+
+    # Read content from the Azure repo file
+    md_content = read_md_file(azure_repo_file_path)
+
+    # Convert Markdown content to Confluence storage format
+    confluence_content = convert_to_confluence_storage_format(md_content)
+
+    # Initialize Confluence connection
+    confluence = Confluence(
+        url="http://localhost:8090",
+        username="admin",
+        password="admin"
+    )
+
+    # Update Confluence page with the new body content
+    status = confluence.update_page(
+        parent_id=None,  # Provide parent_id if it's a child page
+        page_id=123456,  # Provide the ID of the page you want to update
+        title="This is the new title",
+        body=confluence_content,  # Pass the content in Confluence storage format
+    )
+
+    # Print the status
+    print(status)
+
+if __name__ == "__main__":
+    main()
+
+======================================================================
 def convert_to_confluence_storage_format(md_content):
     # Convert Markdown to HTML
     html_content = markdown2.markdown(md_content)
