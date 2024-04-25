@@ -1,18 +1,12 @@
+#Script 2: Python Script (copy_azure_to_confluence.py)
+
 import yaml
 from atlassian import Confluence
-from azure.devops.connection import Connection
-from msrest.authentication import BasicAuthentication
+import os
 
-def read_yaml_file(file_path):
-    with open(file_path, 'r') as yaml_file:
-        return yaml.safe_load(yaml_file)
-
-def read_azure_repo_file(repo_name, pat, file_path):
-    credentials = BasicAuthentication('', pat)
-    connection = Connection(base_url=f'https://dev.azure.com/{repo_name}', creds=credentials)
-    repo_client = connection.clients.get_git_client()
-    item_content = repo_client.get_item_text(repo_name, file_path, 'main')
-    return item_content
+def read_md_file(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return file.read()
 
 def create_confluence_page(confluence, space_key, parent_page_id, title, content):
     page_data = {
@@ -30,21 +24,32 @@ def create_confluence_page(confluence, space_key, parent_page_id, title, content
     return confluence.create_content(content=page_data)
 
 def main():
-    # Read task details from YAML file
-    task_details = read_yaml_file('confluence_task.yaml')
+    # Load YAML configuration
+    with open('call_script.yaml', 'r') as yaml_file:
+        config = yaml.safe_load(yaml_file)
 
-    # Read content from Azure repo file
-    azure_content = read_azure_repo_file(task_details['azure_repo_name'], task_details['azure_pat'], task_details['repo_file_path'])
-
-    # Connect to Confluence
+    # Define Confluence connection
     confluence = Confluence(
-        url=task_details['confluence_url'],
-        username=task_details['confluence_username'],
-        password=task_details['confluence_password']
+        url=config['confluence_url'],
+        username=config['confluence_username'],
+        password=config['confluence_password']
     )
 
+    # Read content from Azure repo file
+    md_content = read_md_file(config['azure_repo_file_path'])
+
+    # Define Confluence page details
+    space_key = config['confluence_space_key']
+    parent_page_id = config['confluence_parent_page_id']
+    page_title = config['confluence_page_title']
+
+    # Check if the page already exists, if so, delete it
+    existing_page = confluence.get_page_by_title(space_key, page_title)
+    if existing_page:
+        confluence.remove_page(existing_page['id'])
+
     # Create the Confluence page
-    page_creation_response = create_confluence_page(confluence, task_details['space_key'], task_details['parent_page_id'], task_details['confluence_page_title'], azure_content)
+    page_creation_response = create_confluence_page(confluence, space_key, parent_page_id, page_title, md_content)
     print("Page created successfully:", page_creation_response['id'])
 
 if __name__ == "__main__":
