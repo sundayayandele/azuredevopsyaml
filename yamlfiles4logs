@@ -1,3 +1,41 @@
+import markdown2
+
+def convert_markdown_to_confluence(md_content):
+    # Convert Markdown to HTML
+    html_content = markdown2.markdown(md_content)
+
+    # Convert HTML to Confluence markup
+    confluence_markup = ''
+
+    # Replace Markdown elements with Confluence markup
+    # Here is a basic example, you may need to extend it to cover all Markdown elements
+    confluence_markup = html_content.replace('# ', 'h1. ').replace('## ', 'h2. ').replace('### ', 'h3. ')
+    confluence_markup = confluence_markup.replace('#### ', 'h4. ').replace('##### ', 'h5. ').replace('###### ', 'h6. ')
+    confluence_markup = confluence_markup.replace('* ', '* ').replace('- ', '* ')
+    confluence_markup = confluence_markup.replace('[', '[').replace('](', '|').replace(')', ')')
+
+    return confluence_markup
+
+# Example Markdown content
+markdown_content = """
+# Heading 1
+## Heading 2
+### Heading 3
+
+- List item 1
+- List item 2
+
+[Link to Google](https://www.google.com)
+
+![Image](https://example.com/image.png)
+"""
+
+# Convert Markdown to Confluence markup
+confluence_markup = convert_markdown_to_confluence(markdown_content)
+
+print(confluence_markup)
+
+=============================================
 from atlassian import Confluence
 import os
 import markdown2
