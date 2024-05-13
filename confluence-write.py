@@ -2,6 +2,28 @@ def get_all_pages_under_parent(parent_title, confluence, space_key):
     all_pages = []
 
     # Function to recursively fetch pages
+    def fetch_pages_recursive(parent_id):
+        pages = confluence.get_child_pages(page_id=parent_id, start=0, limit=1000)  # Adjust limit as needed
+        for page in pages['page']:
+            all_pages.append(page)
+            fetch_pages_recursive(page['id'])
+
+    # Get parent page ID
+    parent_page = confluence.get_page_by_title(space=space_key, title=parent_title)
+    if not parent_page:
+        print(f"Parent page '{parent_title}' not found.")
+        return []
+
+    fetch_pages_recursive(parent_page[0]['id'])
+    return all_pages
+
+
+
+=========================================================
+def get_all_pages_under_parent(parent_title, confluence, space_key):
+    all_pages = []
+
+    # Function to recursively fetch pages
     def fetch_pages_recursive(title):
         pages = confluence.get_page_by_title(space=space_key, title=title)
         for page in pages:
