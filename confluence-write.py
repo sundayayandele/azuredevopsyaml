@@ -1,3 +1,72 @@
+from atlassian import Confluence
+
+# Function to fetch all Confluence page titles and subpage titles under a parent page
+def get_all_confluence_page_titles(parent_page_title, confluence):
+    # Fetch page data
+    page_data = confluence.get_page_by_title(space='SPACE_KEY', title=parent_page_title)
+    
+    # Initialize list to store page titles
+    all_page_titles = []
+    
+    # Function to recursively get all subpage titles
+    def get_subpages(page_data):
+        all_page_titles.append(page_data['title'])  # Add current page title
+        
+        # Fetch children pages recursively
+        for child in page_data['children']['page']:
+            child_page_data = confluence.get_page_by_id(child['id'])
+            get_subpages(child_page_data)
+    
+    # Start recursively fetching subpage titles
+    get_subpages(page_data)
+    
+    return all_page_titles
+
+# Function to move Confluence page to 'Archive' if not found in Azure DevOps repo
+def move_to_archive(confluence_page_title, confluence):
+    # Move Confluence page to 'Archive' space
+    archive_space_key = 'ARCHIVE_SPACE_KEY'
+    archive_parent_page_title = 'ARCHIVE_PARENT_PAGE_TITLE'
+    archive_page = confluence.get_page_by_title(space=archive_space_key, title=archive_parent_page_title)
+    
+    # Update page parent to move it to 'Archive'
+    confluence.update_page(
+        page_id=confluence_page_title['id'],
+        title=confluence_page_title['title'],
+        body=confluence_page_title['body'],
+        space=archive_space_key,
+        parent_id=archive_page['id']
+    )
+    print(f"Confluence page '{confluence_page_title['title']}' moved to 'Archive'")
+
+# Main function
+def main():
+    confluence_token = 'YOUR_CONFLUENCE_TOKEN'  # Replace with your Confluence API token
+    confluence = Confluence(url='YOUR_CONFLUENCE_URL', username='USERNAME', password='PASSWORD', token=confluence_token)
+    
+    parent_page_title = 'YOUR_CONFLUENCE_PARENT_PAGE_TITLE'  # Replace with actual parent page title
+    
+    # Fetch all Confluence page titles and subpage titles under the parent page
+    all_confluence_page_titles = get_all_confluence_page_titles(parent_page_title, confluence)
+    
+    # Azure DevOps repo folder paths
+    azure_repo_folder_paths = [
+        'opts/vsts_agent/_work/1/s/07. Platform/07.07 wow/07.07.03 bag.md',
+        'opts/vsts_agent/_work/1/s/07. Platform/07.06 repositories/07.06.07 report auto/report.md',
+        'opts/vsts_agent/_work/1/s/07. Platform/07.05 monitor and repot/07.05.01 healthcheck/health.md'
+    ]
+    
+    # Compare Confluence page titles with Azure DevOps repo folder paths
+    for page_title in all_confluence_page_titles:
+        if not any(page_title in folder_path for folder_path in azure_repo_folder_paths):
+            move_to_archive(page_title, confluence)
+
+if __name__ == "__main__":
+    main()
+
+
+
+===========================================================================================================================
 import requests
 
 # Function to fetch all Confluence page titles and subpage titles under a parent page
