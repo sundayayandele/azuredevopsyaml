@@ -1,3 +1,20 @@
+def get_all_pages_under_parent(parent_title, confluence, space_key):
+    all_pages = []
+
+    # Function to recursively fetch pages
+    def fetch_pages_recursive(title):
+        pages = confluence.get_page_by_title(space=space_key, title=title)
+        for page in pages:
+            all_pages.append(page)
+            # Check if the page has child pages based on any metadata or relationships
+            # For example, you might need to check for labels, attachments, or links to other pages
+            # Then call this function recursively for each child page
+            # Example: fetch_pages_recursive(page['title'])
+
+    fetch_pages_recursive(parent_title)
+    return all_pages
+==========================================================
+
 from atlassian import Confluence
 
 # Function to fetch all Confluence page titles and subpage titles under a parent page
