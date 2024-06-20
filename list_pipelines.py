@@ -4,10 +4,10 @@ import json
 import os
 
 # Replace these values with your Azure DevOps details
-organization = 'your-organization'
-project = 'your-project'
+organization = os.environ['organization']
+project = os.environ['project']
 pat = os.environ['AZURE_DEVOPS_EXT_PAT']  # Using environment variable for security
-repo_prefix = 'your-repo-prefix'  # The first 6 letters prefix for your repos
+repo_prefix = os.environ['repo_prefix']  # The first 6 letters prefix for your repos
 
 # Base URL for Azure DevOps REST API
 base_url = f'https://dev.azure.com/{organization}/{project}/_apis'
@@ -57,7 +57,8 @@ def find_pipeline_owners():
 pipelines_info = find_pipeline_owners()
 
 # Save the result to a JSON file
-with open('pipelines_info.json', 'w') as f:
+with open('pipelines_info.json', '
+w') as f:
     json.dump(pipelines_info, f, indent=2)
 
 # Print the result for logging purposes
