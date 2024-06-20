@@ -1,0 +1,21 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
+
+- script: |
+    pip install requests
+    python list_pipelines.py
+  displayName: 'Run Python script to list pipelines'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: 'pipelines_info.json'
+    ArtifactName: 'pipelines_info'
