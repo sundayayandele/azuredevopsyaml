@@ -1,4 +1,79 @@
 import requests
+      import yaml
+
+      def get_pipelines_and_ownership(organization_url, personal_access_token, project_name, repo_prefix):
+          """
+          Lists pipelines in a project and identifies ownership based on a repository name prefix.
+
+          Args:
+              organization_url: URL of your Azure DevOps organization (e.g., https://dev.azure.com/your_organization)
+              personal_access_token: PAT with access to read pipelines and repositories
+              project_name: Name of the Azure DevOps project
+              repo_prefix: The prefix for the repository name (e.g., ab9180)
+          """
+
+          # Base URL for Azure DevOps API calls
+          base_url = f"{organization_url}/_apis/"
+
+          # Construct API endpoint for listing pipelines
+          pipelines_url = f"{base_url}pipelines/pipelines?api-version=6.0-preview.1&project={project_name}"
+
+          # Set headers with PAT for authentication (using system.access token)
+          headers = {"Authorization": f"Basic PAT {$(System.AccessToken)}"}
+
+          # Get list of pipelines
+          response = requests.get(pipelines_url, headers=headers)
+
+          if response.status_code == 200:
+              pipelines_data = response.json()
+              pipelines = []
+
+              for pipeline in pipelines_data["value"]:
+                  # Get pipeline definition by ID
+                  pipeline_id = pipeline["id"]
+                  definition_url = f"{base_url}pipelines/{pipeline_id}?$expand=definition&api-version=6.0-preview.1"
+                  definition_response = requests.get(definition_url, headers=headers)
+
+                  if definition_response.status_code == 200:
+                      definition_data = definition_response.json()
+                      definition = definition_data["definition"]
+
+                      # Parse YAML definition to find repository name
+                      try:
+                          # Assuming YAML definition is in the 'yaml' property within 'definition'
+                          definition_yaml = definition["yaml"]
+                          parsed_yaml = yaml.safe_load(definition_yaml)
+                          repo_name = parsed_yaml.get("repository", {}).get("name")
+
+                          # Check if repository name starts with the prefix
+                          if repo_name and repo_name.startswith(repo_prefix):
+                              pipeline_info = {
+                                  "name": pipeline["name"],
+                                  "id": pipeline["id"],
+                                  "repository": repo_name,
+                                  "owner": definition_data.get("createdBy", {}).get("displayName"),
+                              }
+                              pipelines.append(pipeline_info)
+                              print(f"Pipeline: {pipeline['name']}, Owner: {pipeline_info['owner']}, Repository: {pipeline_info['repository']}")
+                      except yaml.YAMLError as ex:
+                          print(f"Error parsing YAML definition for pipeline {pipeline['id']}: {ex}")
+          else:
+              print(f"Error retrieving pipelines: {response.status_code}")
+
+      # Retrieve parameters from pipeline configuration
+      organization_url = parameters.organizationUrl
+      personal_access_token = parameters.personalAccessToken  # Access token retrieved securely
+      project_name = parameters.projectName
+      repo_prefix = "ab9180"
+
+      get_pipelines_and_ownership(organization_url, personal_access_token, project_name, repo_prefix)
+
+
+
+
+
+===============================================================================================
+import requests
 from requests.auth import HTTPBasicAuth
 import json
 import os
