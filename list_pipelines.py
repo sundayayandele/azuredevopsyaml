@@ -1,5 +1,38 @@
+def find_pipeline_owners():
+    pipelines = get_pipelines()
+    pipelines_info = []
 
+    print(f'Found {len(pipelines)} pipelines')
+    for pipeline in pipelines:
+        pipeline_id = pipeline['id']
+        pipeline_name = pipeline['name']
+        
+        details = get_pipeline_details(pipeline_id)
+        if details:
+            repository = details.get('repository', {})
+            repo_name = repository.get('name', '')
+            
+            # Debug information
+            print(f'Checking pipeline: {pipeline_name}, Repo Name: {repo_name}')
+            
+            # Check if the repository name starts with the specified prefix
+            if repo_name.startswith(repo_name_prefix):
+                owner = details.get('createdBy', {}).get('displayName', 'Unknown')
+                pipelines_info.append({'Pipeline Name': pipeline_name, 'Owner': owner})
+    
+    return pipelines_info
 
+# Get the list of pipelines and their owners
+pipelines_info = find_pipeline_owners()
+
+# Save the result to a JSON file
+with open('pipelines_info.json', 'w') as f:
+    json.dump(pipelines_info, f, indent=2)
+
+# Print the result for logging purposes
+for info in pipelines_info:
+    print(f"Pipeline: {info['Pipeline Name']}, Owner: {info['Owner']}")
+===============================================================================
 folder_filter = '\\S0123'  # Adjusted for correct folder path
 
 # Retrieve system access token from the environment
