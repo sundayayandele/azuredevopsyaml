@@ -1,3 +1,58 @@
+token = os.getenv('SYSTEM_ACCESSTOKEN')
+
+# Function to get all pipelines
+def get_pipelines():
+    pipelines_url = f'{base_url}?api-version={api_version}'
+    response = requests.get(pipelines_url, headers={'Authorization': f'Bearer {token}'})
+    
+    if response.status_code == 200:
+        return response.json()['value']
+    else:
+        print(f'Error retrieving pipelines: {response.status_code}, {response.text}')
+        return []
+
+# Function to get pipeline details (including repository info)
+def get_pipeline_details(pipeline_id):
+    pipeline_url = f'{base_url}/{pipeline_id}?api-version={api_version}'
+    response = requests.get(pipeline_url, headers={'Authorization': f'Bearer {token}'})
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f'Error retrieving pipeline details: {response.status_code}, {response.text}')
+        return None
+
+# Function to find pipeline owners based on pipeline name filter
+def find_pipeline_owners():
+    pipelines = get_pipelines()
+    pipelines_info = []
+
+    for pipeline in pipelines:
+        pipeline_id = pipeline['id']
+        pipeline_name = pipeline['name']
+        
+        # Check if pipeline name starts with the filter
+        if pipeline_name.startswith(pipeline_name_filter):
+            details = get_pipeline_details(pipeline_id)
+            if details:
+                owner = details.get('createdBy', {}).get('displayName', 'Unknown')
+                pipelines_info.append({'Pipeline Name': pipeline_name, 'Owner': owner})
+    
+    return pipelines_info
+
+# Get the list of pipelines and their owners
+pipelines_info = find_pipeline_owners()
+
+# Save the result to a JSON file
+with open('pipelines_info.json', 'w') as f:
+    json.dump(pipelines_info, f, indent=2)
+
+# Print the result for logging purposes
+for info in pipelines_info:
+    print(f"Pipeline: {info['Pipeline Name']}, Owner: {info['Owner']}")
+
+
+=============================================================================================
 trigger:
 - main
 
