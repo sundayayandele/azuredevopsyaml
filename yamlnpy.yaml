@@ -63,6 +63,111 @@ def get_pipeline_details(pipeline_id, token):
         print(f'Error retrieving pipeline details: {response.status_code}, {response.text}')
         return None
 
+# Function to find pipeline details based on folder path
+def find_pipeline_details(folder_path, token):
+    pipelines = get_pipelines_from_folder(folder_path, token)
+    pipeline_details = []
+
+    print(f'Found {len(pipelines)} pipelines')
+    for pipeline in pipelines:
+        pipeline_id = pipeline['id']
+        details = get_pipeline_details(pipeline_id, token)
+        if details:
+            pipeline_name = details['name']
+            repository_name = details.get('repository', {}).get('name', 'Unknown')
+            author_name = details.get('createdBy', {}).get('displayName', 'Unknown')
+            pipeline_details.append({'Pipeline Name': pipeline_name, 'Repository Name': repository_name, 'Author': author_name})
+    
+    return pipeline_details
+
+# Get the list of pipeline details
+pipeline_details = find_pipeline_details(folder_filter, token)
+
+# Save the result to a JSON file
+with open('pipeline_details.json', 'w') as f:
+    json.dump(pipeline_details, f, indent=2)
+
+# Print the result for logging purposes
+for detail in pipeline_details:
+    print(f"Pipeline Name: {detail['Pipeline Name']}, Repository Name: {detail['Repository Name']}, Author: {detail['Author']}")
+
+EOF
+  displayName: 'Run Python script to list pipeline names, repository names, and authors from folder'
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)  # Use the access token provided by the service connection
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: 'pipeline_details.json'
+    ArtifactName: 'pipeline_details'
+
+
+==============================================
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
+
+- script: |
+    pip install requests
+    python - <<EOF
+import requests
+import json
+import os
+
+# Azure DevOps configuration
+organization = 'SAAM'
+project = 'Abc'
+api_version = '6.0'
+base_url = f'https://dev.azure.com/{organization}/{project}/_apis/build/definitions'
+folder_filter = '\\S0123'  # Specify your folder path here
+
+# Retrieve system access token from the environment
+token = os.getenv('SYSTEM_ACCESSTOKEN')
+
+# Function to get all pipelines from a specific folder and its subfolders
+def get_pipelines_from_folder(folder_path, token):
+    pipelines = []
+    continuation_token = None
+
+    while True:
+        pipelines_url = f'{base_url}?api-version={api_version}&path={folder_path}'
+        if continuation_token:
+            pipelines_url += f'&continuationToken={continuation_token}'
+
+        print(f'Requesting pipelines from: {pipelines_url}')
+        response = requests.get(pipelines_url, headers={'Authorization': f'Bearer {token}'})
+        
+        if response.status_code == 200:
+            result = response.json()
+            pipelines.extend(result.get('value', []))
+            continuation_token = result.get('continuationToken', None)
+            if not continuation_token:
+                break
+        else:
+            print(f'Error retrieving pipelines: {response.status_code}, {response.text}')
+            break
+
+    return pipelines
+
+# Function to get pipeline details (including repository info)
+def get_pipeline_details(pipeline_id, token):
+    pipeline_url = f'{base_url}/{pipeline_id}?api-version={api_version}'
+    response = requests.get(pipeline_url, headers={'Authorization': f'Bearer {token}'})
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f'Error retrieving pipeline details: {response.status_code}, {response.text}')
+        return None
+
 # Function to find pipeline build IDs and names based on folder path
 def find_pipeline_ids_and_names(folder_path, token):
     pipelines = get_pipelines_from_folder(folder_path, token)
