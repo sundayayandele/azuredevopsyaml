@@ -1,0 +1,109 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
+
+- script: |
+    pip install requests
+    python - <<EOF
+import requests
+import json
+import os
+
+# Azure DevOps configuration
+organization = 'SAAM'
+project = 'Abc'
+api_version = '6.0'
+base_url = f'https://dev.azure.com/{organization}/{project}/_apis/build/definitions'
+repo_name_prefix = 'S0123'
+
+# Retrieve system access token from the environment
+token = os.getenv('SYSTEM_ACCESSTOKEN')
+
+# Function to get all pipelines
+def get_all_pipelines():
+    pipelines = []
+    continuation_token = None
+
+    while True:
+        pipelines_url = f'{base_url}?api-version={api_version}'
+        if continuation_token:
+            pipelines_url += f'&continuationToken={continuation_token}'
+
+        print(f'Requesting pipelines from: {pipelines_url}')
+        response = requests.get(pipelines_url, headers={'Authorization': f'Bearer {token}'})
+        
+        if response.status_code == 200:
+            result = response.json()
+            pipelines.extend(result.get('value', []))
+            continuation_token = result.get('continuationToken', None)
+            if not continuation_token:
+                break
+        else:
+            print(f'Error retrieving pipelines: {response.status_code}, {response.text}')
+            break
+
+    return pipelines
+
+# Function to get pipeline details (including repository info)
+def get_pipeline_details(pipeline_id):
+    pipeline_url = f'{base_url}/{pipeline_id}?api-version={api_version}'
+    response = requests.get(pipeline_url, headers={'Authorization': f'Bearer {token}'})
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f'Error retrieving pipeline details: {response.status_code}, {response.text}')
+        return None
+
+# Function to find pipeline build IDs and names based on repository name prefix
+def find_pipeline_ids_and_names():
+    pipelines = get_all_pipelines()
+    pipelines_info = []
+
+    print(f'Found {len(pipelines)} pipelines')
+    for pipeline in pipelines:
+        pipeline_id = pipeline['id']
+        pipeline_name = pipeline['name']
+        
+        details = get_pipeline_details(pipeline_id)
+        if details:
+            repository = details.get('repository', {})
+            repo_name = repository.get('name', '')
+            
+            # Debug information
+            print(f'Checking pipeline: {pipeline_name}, Repo Name: {repo_name}')
+            
+            # Check if the repository name starts with the specified prefix
+            if repo_name.startswith(repo_name_prefix):
+                pipelines_info.append({'Build ID': pipeline_id, 'Pipeline Name': pipeline_name})
+    
+    return pipelines_info
+
+# Get the list of pipeline build IDs and names
+pipelines_info = find_pipeline_ids_and_names()
+
+# Save the result to a JSON file
+with open('pipelines_info.json', 'w') as f:
+    json.dump(pipelines_info, f, indent=2)
+
+# Print the result for logging purposes
+for info in pipelines_info:
+    print(f"Build ID: {info['Build ID']}, Pipeline Name: {info['Pipeline Name']}")
+
+EOF
+  displayName: 'Run Python script to list pipeline build IDs and names'
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: 'pipelines_info.json'
+    ArtifactName: 'pipelines_info'
