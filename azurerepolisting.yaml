@@ -1,0 +1,142 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'YourAzureServiceConnection'  # Replace with your service connection name
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      pip install requests
+      python - <<EOF
+import subprocess
+import json
+import os
+
+# Function to execute an az command and return the output
+def az_cli(command):
+    result = subprocess.run(['az'] + command.split(), capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f'Error running command: az {command}')
+        print(result.stderr)
+        return None
+    return json.loads(result.stdout)
+
+# Function to list repositories in the project
+def list_repos():
+    command = f'devops repo list --organization https://dev.azure.com/SAAM --project Abc --query "[].name"'
+    return az_cli(command)
+
+# Function to list items in a repo path
+def list_repo_items(repo_name, path):
+    command = f'devops repo list --organization https://dev.azure.com/SAAM --project Abc --repository {repo_name} --path {path} --query "[].path"'
+    return az_cli(command)
+
+# List all repos in the project
+repos = list_repos()
+if not repos:
+    print("No repositories found.")
+    exit(1)
+
+yaml_files = []
+
+# Iterate over each repo and look for 'pipeline' folder
+for repo in repos:
+    items = list_repo_items(repo, '/pipeline')
+    if items:
+        for item in items:
+            if item.endswith('.yaml') or item.endswith('.yml'):
+                yaml_files.append({'repo': repo, 'file': item})
+
+# Save the result to a JSON file
+with open('yaml_files.json', 'w') as f:
+    json.dump(yaml_files, f, indent=2)
+
+# Print the result for logging purposes
+for file in yaml_files:
+    print(f"Repository: {file['repo']}, File: {file['file']}")
+EOF
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: 'yaml_files.json'
+    ArtifactName: 'yaml_files'
+
+- script: |
+      pip install requests
+      python - <<EOF
+import requests
+import json
+import os
+
+# Azure DevOps configuration
+organization = 'SAAM'
+project = 'Abc'
+api_version = '6.0'
+base_url = f'https://dev.azure.com/{organization}/{project}/_apis'
+
+# Retrieve system access token from the environment
+token = os.getenv('SYSTEM_ACCESSTOKEN')
+headers = {'Authorization': f'Bearer {token}'}
+
+# Function to list repositories in the project
+def list_repos():
+    url = f'{base_url}/git/repositories?api-version={api_version}'
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json().get('value', [])
+    else:
+        print(f'Error retrieving repos: {response.status_code}, {response.text}')
+        return []
+
+# Function to list items in a repo path
+def list_repo_items(repo_id, path):
+    url = f'{base_url}/git/repositories/{repo_id}/items?scopePath={path}&api-version={api_version}'
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json().get('value', [])
+    else:
+        print(f'Error retrieving repo items: {response.status_code}, {response.text}')
+        return []
+
+# List all repos in the project
+repos = list_repos()
+if not repos:
+    print("No repositories found.")
+    exit(1)
+
+yaml_files = []
+
+# Iterate over each repo and look for 'pipeline' folder
+for repo in repos:
+    items = list_repo_items(repo['id'], '/pipeline')
+    if items:
+        for item in items:
+            if item['path'].endswith('.yaml') or item['path'].endswith('.yml'):
+                yaml_files.append({'repo': repo['name'], 'file': item['path']})
+
+# Save the result to a JSON file
+with open('yaml_files.json', 'w') as f:
+    json.dump(yaml_files, f, indent=2)
+
+# Print the result for logging purposes
+for file in yaml_files:
+    print(f"Repository: {file['repo']}, File: {file['file']}")
+EOF
+  displayName: 'Run Python script to list YAML files from repositories'
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)  # Use the access token provided by the service connection
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: 'yaml_files.json'
+    ArtifactName: 'yaml_files'
