@@ -1,0 +1,94 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'YourAzureServiceConnection'  # Replace with your service connection name
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      pip install requests
+      python - <<EOF
+import os
+import json
+import subprocess
+
+# List of folder filters
+folder_filters = ['\\S0123\\abc', '\\S0123\\def', '\\S0123\\aba', '\\S0123\\riso', '\\S0123\\ahs', '\\S0123\\eid']
+
+# Function to execute an az command and return the output
+def az_cli(command):
+    result = subprocess.run(['az'] + command.split(), capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f'Error running command: az {command}')
+        print(result.stderr)
+        return None
+    return json.loads(result.stdout)
+
+# Function to get all pipelines from a specific folder
+def get_pipelines_from_folder(folder_path):
+    command = f'devops pipeline list --org https://dev.azure.com/SAAM --project Abc --query "[?path==\'{folder_path}\']"'
+    return az_cli(command)
+
+# Function to get pipeline details (including repository info)
+def get_pipeline_details(pipeline_id):
+    command = f'devops pipeline show --id {pipeline_id} --org https://dev.azure.com/SAAM --project Abc'
+    return az_cli(command)
+
+# Function to recursively get pipeline details from a folder and its subfolders
+def find_pipeline_details_recursively(folder_paths):
+    pipeline_details = []
+
+    def traverse_folders(current_folder):
+        pipelines = get_pipelines_from_folder(current_folder)
+        
+        if pipelines is None:
+            return
+
+        for pipeline in pipelines:
+            pipeline_id = pipeline['id']
+            details = get_pipeline_details(pipeline_id)
+            if details:
+                pipeline_name = details['name']
+                repository_name = details.get('repository', {}).get('name', 'Unknown')
+                author_name = details.get('createdBy', {}).get('displayName', 'Unknown')
+                pipeline_details.append({'Pipeline Name': pipeline_name, 'Repository Name': repository_name, 'Author': author_name})
+
+        # Check for subfolders and traverse them
+        subfolders = get_pipelines_from_folder(current_folder)
+        if subfolders:
+            for item in subfolders:
+                if 'folder' in item and item['folder']:
+                    traverse_folders(item['path'])
+
+    for folder_path in folder_paths:
+        traverse_folders(folder_path)
+    
+    return pipeline_details
+
+# Get the list of pipeline details recursively for multiple folder filters
+pipeline_details = find_pipeline_details_recursively(folder_filters)
+
+# Save the result to a JSON file
+with open('pipeline_details.json', 'w') as f:
+    json.dump(pipeline_details, f, indent=2)
+
+# Print the result for logging purposes
+for detail in pipeline_details:
+    print(f"Pipeline Name: {detail['Pipeline Name']}, Repository Name: {detail['Repository Name']}, Author: {detail['Author']}")
+
+EOF
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: 'pipeline_details.json'
+    ArtifactName: 'pipeline_details'
