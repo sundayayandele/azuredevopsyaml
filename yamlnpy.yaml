@@ -1,4 +1,157 @@
+trigger:
+- main
 
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
+
+- script: |
+    pip install requests
+    python - <<EOF
+import requests
+import json
+import os
+
+# Azure DevOps configuration
+organization = 'SAAM'
+project = 'Abc'
+api_version = '6.0'
+base_url = f'https://dev.azure.com/{organization}/{project}/_apis/build/definitions'
+graph_api_version = '6.0-preview'
+graph_base_url = f'https://vssps.dev.azure.com/{organization}/_apis/graph'
+
+# List of folder filters
+folder_filters = ['\\S0123\\abc', '\\S0123\\def', '\\S0123\\aba', '\\S0123\\riso', '\\S0123\\ahs', '\\S0123\\eid']
+
+# Retrieve system access token from the environment
+token = os.getenv('SYSTEM_ACCESSTOKEN')
+
+# Function to get all pipelines from a specific folder
+def get_pipelines_from_folder(folder_path, token):
+    pipelines = []
+    continuation_token = None
+
+    while True:
+        pipelines_url = f'{base_url}?api-version={api_version}&path={folder_path}'
+        if continuation_token:
+            pipelines_url += f'&continuationToken={continuation_token}'
+
+        response = requests.get(pipelines_url, headers={'Authorization': f'Bearer {token}'})
+        
+        if response.status_code == 200:
+            result = response.json()
+            pipelines.extend(result.get('value', []))
+            continuation_token = result.get('continuationToken', None)
+            if not continuation_token:
+                break
+        else:
+            print(f'Error retrieving pipelines: {response.status_code}, {response.text}')
+            break
+
+    return pipelines
+
+# Function to get pipeline details (including repository info)
+def get_pipeline_details(pipeline_id, token):
+    pipeline_url = f'{base_url}/{pipeline_id}?api-version={api_version}'
+    response = requests.get(pipeline_url, headers={'Authorization': f'Bearer {token}'})
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f'Error retrieving pipeline details: {response.status_code}, {response.text}')
+        return None
+
+# Function to get user descriptor using userentitlements API
+def get_user_descriptor(user_id, token):
+    user_entitlements_url = f'https://vssps.dev.azure.com/{organization}/_apis/userentitlements?api-version=6.0-preview'
+    response = requests.get(user_entitlements_url, headers={'Authorization': f'Bearer {token}'})
+    
+    if response.status_code == 200:
+        users = response.json().get('members', [])
+        for user in users:
+            if user.get('user', {}).get('id') == user_id:
+                return user.get('user', {}).get('descriptor')
+    print(f'Error retrieving user descriptor: {response.status_code}, {response.text}')
+    return None
+
+# Function to get user memberships
+def get_user_memberships(user_descriptor, token):
+    memberships_url = f'{graph_base_url}/memberships/{user_descriptor}?api-version={graph_api_version}&direction=down'
+    response = requests.get(memberships_url, headers={'Authorization': f'Bearer {token}'})
+    
+    if response.status_code == 200:
+        memberships = response.json().get('value', [])
+        membership_names = [membership['member']['displayName'] for membership in memberships if 'member' in membership and 'displayName' in membership['member']]
+        return membership_names
+    else:
+        print(f'Error retrieving user memberships: {response.status_code}, {response.text}')
+        return []
+
+# Function to recursively get pipeline details from a folder and its subfolders
+def find_pipeline_details_recursively(folder_paths, token):
+    pipeline_details = []
+
+    def traverse_folders(current_folder):
+        pipelines = get_pipelines_from_folder(current_folder, token)
+        
+        for pipeline in pipelines:
+            pipeline_id = pipeline['id']
+            details = get_pipeline_details(pipeline_id, token)
+            if details:
+                pipeline_name = details['name']
+                repository_name = details.get('repository', {}).get('name', 'Unknown')
+                author_name = details.get('authoredBy', {}).get('displayName', 'Unknown')
+                author_id = details.get('authoredBy', {}).get('id', None)
+                if author_id:
+                    author_descriptor = get_user_descriptor(author_id, token)
+                    if author_descriptor:
+                        author_memberships = get_user_memberships(author_descriptor, token)
+                    else:
+                        author_memberships = []
+                else:
+                    author_memberships = []
+                pipeline_details.append({
+                    'Pipeline Name': pipeline_name,
+                    'Repository Name': repository_name,
+                    'Author': author_name,
+                    'Author Memberships': author_memberships
+                })
+
+        # Check for subfolders and traverse them
+        subfolders_url = f'{base_url}?api-version={api_version}&path={current_folder}'
+        response = requests.get(subfolders_url, headers={'Authorization': f'Bearer {token}'})
+        if response.status_code == 200:
+            result = response.json()
+            for item in result.get('value', []):
+                if item.get('folder', False):
+                    traverse_folders(item['path'])
+        else:
+            print(f'Error retrieving subfolders: {response.status_code}, {response.text}')
+
+    for folder_path in folder_paths:
+        traverse_folders(folder_path)
+    
+    return pipeline_details
+
+# Get the list of pipeline details recursively for multiple folder filters
+pipeline_details = find_pipeline_details_recursively(folder_filters, token)
+
+# Save the result to a JSON file
+with open('pipeline_details.json', 'w') as f:
+    json.dump(pipeline_details, f, indent=2)
+
+# Print the result for logging purposes
+for detail in pipeline_details:
+    print(f"Pipeline Name: {detail['Pipeline Name']}, Repository Name: {detail
+
+
+
+=====================================================
 trigger:
 - main
 
