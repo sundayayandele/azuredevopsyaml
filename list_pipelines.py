@@ -1,3 +1,93 @@
+# Function to get user descriptor using userentitlements API
+def get_user_descriptor(user_id, token):
+    user_entitlements_url = f'{entitlements_api_url}?api-version=6.0-preview'
+    response = requests.get(user_entitlements_url, headers={'Authorization': f'Bearer {token}'})
+    
+    if response.status_code == 200:
+        entitlements = response.json().get('value', [])
+        for entitlement in entitlements:
+            user = entitlement.get('user', {})
+            if user.get('subjectkind') == 'user' and user.get('id') == user_id:
+                return user.get('descriptor')
+        print(f'User descriptor not found for user ID: {user_id}')
+        return None
+    else:
+        print(f'Error retrieving user entitlements: {response.status_code}, {response.text}')
+        return None
+
+# Function to get user memberships
+def get_user_memberships(user_descriptor, token):
+    memberships_url = f'{entitlements_api_url}/{user_descriptor}/groups?api-version=6.0-preview'
+    response = requests.get(memberships_url, headers={'Authorization': f'Bearer {token}'})
+    
+    if response.status_code == 200:
+        memberships = response.json().get('value', [])
+        membership_names = [membership['displayName'] for membership in memberships if 'displayName' in membership]
+        return membership_names
+    else:
+        print(f'Error retrieving user memberships: {response.status_code}, {response.text}')
+        return []
+
+# Function to recursively get pipeline details from a folder and its subfolders
+def find_pipeline_details_recursively(folder_paths, token):
+    pipeline_details = []
+
+    def traverse_folders(current_folder):
+        pipelines = get_pipelines_from_folder(current_folder, token)
+        
+        for pipeline in pipelines:
+            pipeline_id = pipeline['id']
+            details = get_pipeline_details(pipeline_id, token)
+            if details:
+                pipeline_name = details['name']
+                repository_name = details.get('repository', {}).get('name', 'Unknown')
+                author_name = details.get('authoredBy', {}).get('displayName', 'Unknown')
+                author_id = details.get('authoredBy', {}).get('id', None)
+                if author_id:
+                    author_descriptor = get_user_descriptor(author_id, token)
+                    if author_descriptor:
+                        author_memberships = get_user_memberships(author_descriptor, token)
+                    else:
+                        author_memberships = []
+                else:
+                    author_memberships = []
+                pipeline_details.append({
+                    'Pipeline Name': pipeline_name,
+                    'Repository Name': repository_name,
+                    'Author': author_name,
+                    'Author Memberships': author_memberships
+                })
+
+        # Check for subfolders and traverse them
+        subfolders_url = f'{base_url}?api-version={api_version}&path={current_folder}'
+        response = requests.get(subfolders_url, headers={'Authorization': f'Bearer {token}'})
+        if response.status_code == 200:
+            result = response.json()
+            for item in result.get('value', []):
+                if item.get('folder', False):
+                    traverse_folders(item['path'])
+        else:
+            print(f'Error retrieving subfolders: {response.status_code}, {response.text}')
+
+    for folder_path in folder_paths:
+        traverse_folders(folder_path)
+    
+    return pipeline_details
+
+# Get the list of pipeline details recursively for multiple folder filters
+pipeline_details = find_pipeline_details_recursively(folder_filters, token)
+
+# Save the result to a JSON file
+with open('pipeline_details.json', 'w') as f:
+    json.dump(pipeline_details, f, indent=2)
+
+# Print the result for logging purposes
+for detail in pipeline_details:
+    print(f"Pipeline Name: {detail['Pipeline Name']}, Repository Name: {detail['Repository Name']}, Author: {detail['Author']}, Author Memberships: {', '.join(detail['Author Memberships'])}")
+
+
+
+================================================
 def find_pipeline_owners():
     pipelines = get_pipelines()
     pipelines_info = []
