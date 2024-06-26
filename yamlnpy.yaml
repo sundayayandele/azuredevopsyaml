@@ -1,3 +1,7 @@
+
+GET https://vssps.dev.azure.com/fabrikam/_apis/graph/Memberships/{subjectDescriptor}?api-version=7.1-preview.1
+
+===============
 trigger:
 - main
 
