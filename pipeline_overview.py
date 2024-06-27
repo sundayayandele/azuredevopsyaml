@@ -1,3 +1,73 @@
+
+import json
+import os
+import requests
+
+def get_access_token():
+    """Retrieve the Azure DevOps access token from environment variable."""
+    return os.getenv('SYSTEM_ACCESSTOKEN')
+
+def get_user_descriptor(display_name, organization):
+    """Get the user descriptor using user entitlements API."""
+    access_token = get_access_token()
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
+    filter_name = f"name eq '{display_name}'"
+    url = f"https://vsaex.dev.azure.com/{organization}/_apis/userentitlements?$filter={filter_name}&api-version=7.1-preview-3"
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an exception for bad responses (4xx or 5xx)
+        entitlements = response.json()
+        if 'value' in entitlements and len(entitlements['value']) > 0:
+            user_descriptor = entitlements['value'][0]['user']['descriptor']
+            return user_descriptor
+        else:
+            print(f"No user entitlement found for display name: {display_name}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error retrieving user entitlement: {e}")
+        return None
+
+def get_user_memberships(user_descriptor, organization):
+    """Get user memberships using the user descriptor."""
+    access_token = get_access_token()
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
+    url = f"https://vsaex.dev.azure.com/{organization}/_apis/graph/users/{user_descriptor}/memberships?api-version=7.1-preview.1"
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an exception for bad responses (4xx or 5xx)
+        memberships = response.json()
+        if 'value' in memberships:
+            return [membership['displayName'] for membership in memberships['value']]
+        else:
+            print(f"No memberships found for user descriptor: {user_descriptor}")
+            return []
+    except requests.exceptions.RequestException as e:
+        print(f"Error retrieving user memberships: {e}")
+        return []
+
+if __name__ == "__main__":
+    organization = 'SAAM'
+    display_name = 'John Doe'  # Replace with the display name of the user you want to query
+
+    user_descriptor = get_user_descriptor(display_name, organization)
+    if user_descriptor:
+        memberships = get_user_memberships(user_descriptor, organization)
+        print(f"User Descriptor: {user_descriptor}")
+        print(f"Memberships: {', '.join(memberships)}")
+    else:
+        print(f"User '{display_name}' not found or has no entitlements/memberships.")
+
+
+
+============================================================================================
 import json
 import os
 import subprocess
