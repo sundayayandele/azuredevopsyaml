@@ -1,3 +1,32 @@
+#!/bin/bash
+
+# Variables
+organization="YOUR_ORGANIZATION_NAME"
+token="YOUR_PERSONAL_ACCESS_TOKEN"
+display_name="DISPLAY_NAME_TO_LOOKUP"
+
+# API URL
+entitlements_api_url="https://vsaex.dev.azure.com/$organization/_apis/userentitlements?api-version=7.1-preview-3"
+
+# Make API request
+response=$(curl -s -H "Authorization: Bearer $token" $entitlements_api_url)
+
+# Check if the API call was successful
+if [[ $(echo $response | jq '.count') -gt 0 ]]; then
+    # Iterate over the user entitlements and find the descriptor by display name
+    descriptor=$(echo $response | jq -r --arg display_name "$display_name" '.value[] | select(.user.displayName == $display_name) | .descriptor')
+    if [[ -n "$descriptor" ]]; then
+        echo "Descriptor for user $display_name: $descriptor"
+    else
+        echo "User descriptor not found for user $display_name"
+    fi
+else
+    echo "Error retrieving user entitlements: $(echo $response | jq -r '.message')"
+fi
+
+
+
+===========================================================
 trigger:
 - main
 
