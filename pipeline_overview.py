@@ -1,4 +1,84 @@
+Here's a Python snippet that can convert both JSON and HTML data to Markdown tables:
 
+Python
+import json
+from bs4 import BeautifulSoup  # For HTML parsing
+
+def json_to_markdown_table(json_data):
+  """
+  Converts a JSON object to a Markdown table.
+
+  Args:
+      json_data: The JSON data as a dictionary or list.
+
+  Returns:
+      A string containing the Markdown table representation of the JSON data.
+  """
+  headers = list(json_data[0].keys())  # Get headers from the first object
+  table_rows = []
+
+  for item in json_data:
+    row_data = [str(item[header]) for header in headers]
+    table_rows.append(row_data)
+
+  # Construct the Markdown table
+  table_str = "| " + " | ".join(headers) + " |\n"
+  table_str += "|-" * (len(headers) * 2 + 1) + "|\n"
+  for row in table_rows:
+    table_str += "| " + " | ".join(row) + " |\n"
+
+  return table_str
+
+def html_to_markdown_table(html_data):
+  """
+  Converts an HTML table to a Markdown table.
+
+  Args:
+      html_data: The HTML content as a string.
+
+  Returns:
+      A string containing the Markdown table representation of the HTML table, 
+      or None if no table is found.
+  """
+  soup = BeautifulSoup(html_data, 'html.parser')
+  table = soup.find('table')  # Find the first table element
+
+  if table:
+    headers = [th.text.strip() for th in table.find_all('th')]  # Extract headers
+    table_rows = []
+
+    for row in table.find_all('tr')[1:]:  # Skip header row
+      row_data = [td.text.strip() for td in row.find_all('td')]
+      table_rows.append(row_data)
+
+    # Construct the Markdown table (similar to json_to_markdown_table)
+    table_str = "| " + " | ".join(headers) + " |\n"
+    table_str += "|-" * (len(headers) * 2 + 1) + "|\n"
+    for row in table_rows:
+      table_str += "| " + " | ".join(row) + " |\n"
+
+    return table_str
+  else:
+    return None
+
+# Example Usage
+# Assuming your JSON data is loaded into a variable called 'data'
+json_table = json_to_markdown_table(data)
+
+# Assuming your HTML data is loaded into a variable called 'html_content'
+html_table = html_to_markdown_table(html_content)
+
+# Print or write the converted Markdown tables
+if json_table:
+  print("Markdown table from JSON:")
+  print(json_table)
+
+if html_table:
+  print("Markdown table from HTML:")
+  print(html_table)
+  
+
+-------------------------------------------------------------------------------------------------------------
 import json
 import os
 import requests
