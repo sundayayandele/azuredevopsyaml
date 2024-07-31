@@ -74,3 +74,12 @@ for repo in repositories:
             if creator_email == target_email and first_committer_email == target_email:
                 print(f'Deleting branch {branch_name} in repository {repo["name"]}')
                 delete_branch(repo['id'], branch_name)
+
+
+
+######
+Explanation
+Set the target email: Add target_email = 'xy@ABC.com' to specify the email address you want to match.
+Get the creator’s email: Use branch['creator']['uniqueName'] to get the email of the branch creator.
+Get the first committer’s email: Modify the get_first_committer function to return the email of the first committer.
+Match emails: Check if both the creator’s email and the first committer’s email match the target email before deleting the branch.
