@@ -1,0 +1,76 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
+
+- script: |
+    pip install requests
+    python delete_branches.py
+  displayName: 'Run Python script'
+
+
+## python code:
+
+''''
+import requests
+import json
+import os
+
+# Set your Azure DevOps organization and project details
+organization = 'your-organization'
+project = 'your-project'
+root_directory = '//S0123'
+personal_access_token = 'your-pat'
+target_email = 'xy@ABC.com'
+
+# Base URL for Azure DevOps API
+base_url = f'https://dev.azure.com/{organization}/{project}/_apis/git/repositories?api-version=7.1-preview.1'
+
+# Function to get all repositories
+def get_repositories():
+    response = requests.get(base_url, auth=('', personal_access_token))
+    response.raise_for_status()
+    return response.json()['value']
+
+# Function to get branches for a repository
+def get_branches(repo_id):
+    url = f'https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repo_id}/refs?filter=heads/&api-version=7.1-preview.1'
+    response = requests.get(url, auth=('', personal_access_token))
+    response.raise_for_status()
+    return response.json()['value']
+
+# Function to get the first committer of a branch
+def get_first_committer(repo_id, branch_name):
+    url = f'https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repo_id}/commits?searchCriteria.itemVersion.version={branch_name}&$top=1&api-version=7.1-preview.1'
+    response = requests.get(url, auth=('', personal_access_token))
+    response.raise_for_status()
+    commits = response.json()['value']
+    if commits:
+        return commits[0]['committer']['email']
+    return None
+
+# Function to delete a branch
+def delete_branch(repo_id, branch_name):
+    url = f'https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repo_id}/refs?filter=heads/{branch_name}&api-version=7.1-preview.1'
+    response = requests.delete(url, auth=('', personal_access_token))
+    response.raise_for_status()
+
+# Main script
+repositories = get_repositories()
+for repo in repositories:
+    if repo['name'].startswith(root_directory):
+        branches = get_branches(repo['id'])
+        for branch in branches:
+            branch_name = branch['name'].replace('refs/heads/', '')
+            creator_email = branch['creator']['uniqueName']
+            first_committer_email = get_first_committer(repo['id'], branch_name)
+            if creator_email == target_email and first_committer_email == target_email:
+                print(f'Deleting branch {branch_name} in repository {repo["name"]}')
+                delete_branch(repo['id'], branch_name)
