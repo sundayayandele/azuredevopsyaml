@@ -133,3 +133,9 @@ Notes for Pipeline:
 Authentication: Use $(System.AccessToken) to authenticate with Azure Repos. Ensure the pipeline has access to the repository and the appropriate permissions are set.
 Manual Conflict Resolution: The pipeline script uses git rebase master || true to allow the pipeline to complete and you can handle conflicts manually if they occur.
 This setup automates the rebase process but still requires manual intervention for conflict resolution if conflicts arise during the rebase.
+===========================================================================================
+Using Git to checkout a branch on the command line
+Change to the root of the local repository. $ cd <repo_name>
+List all your branches: $ git branch -a. ...
+Checkout the branch you want to use. $ git checkout <feature_branch>
+Confirm you are now working on that branch: $ git branch.
