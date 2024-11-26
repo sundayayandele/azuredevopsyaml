@@ -1,0 +1,18 @@
+#!/bin/bash
+
+ORGANIZATION="<organization>"
+PROJECT="<project>"
+REPO_NAME="<repository-name>"
+PAT="<your-personal-access-token>"
+
+API_URL="https://dev.azure.com/$ORGANIZATION/$PROJECT/_apis/git/repositories/$REPO_NAME?api-version=7.0"
+
+curl -X PATCH \
+     -H "Authorization: Basic $(echo -n ":$PAT" | base64)" \
+     -H "Content-Type: application/json" \
+     -d '{"defaultBranch": "refs/heads/master"}' \
+     $API_URL
+=======================================================
+
+chmod +x change_default_branch.sh
+./change_default_branch.sh
