@@ -83,9 +83,9 @@ git checkout feature/abc
 git rebase master
 
 # Step 6: Resolve Any Conflicts (manually if they occur)
-# If conflicts occur, you need to resolve them manually, then:
-# git add path/to/resolved_file
-# git rebase --continue
+- If conflicts occur, you need to resolve them manually, then:
+- git add path/to/resolved_file
+- git rebase --continue
 
 # Step 7: Force Push the Rebasing Changes to Remote
 git push origin feature/abc --force
