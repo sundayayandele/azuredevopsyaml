@@ -89,7 +89,7 @@ git rebase master
 
 # Step 7: Force Push the Rebasing Changes to Remote
 git push origin feature/abc --force
-Notes:
+* Notes:
 Conflict Resolution: During rebase, if there are conflicts, Git will prompt you to resolve them. Open the conflicted files in your editor, resolve the conflicts, and then use git add to stage the resolved files and git rebase --continue to proceed with the rebase.
 Force Push: Be cautious with git push --force as it overwrites the remote branch history. Ensure your team is aware of the changes to avoid disrupting their work.
 Automating with Azure DevOps Pipeline
