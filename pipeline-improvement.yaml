@@ -1,0 +1,79 @@
+co-pilot
+==≠======
+
+Improving your Azure pipeline to combine CI and CD into a single pipeline with stages for TST, ACC, and PRD is a great idea! Here are some design decisions and steps to achieve this:
+
+### Design Decisions
+
+1. **Single Pipeline for CI/CD**: Combine CI and CD into a single pipeline YAML file[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1").
+2. **Stages for Different Environments**: Define stages for TST (Testing), ACC (Acceptance), and PRD (Production)[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1").
+3. **Dependencies Between Stages**: Use `dependsOn` to ensure stages run in the correct order[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1").
+4. **Manual and Auto Triggering**: Allow manual triggering for ACC and PRD stages, and auto-triggering from CI stage[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1").
+5. **Conditions and Validation**: Implement conditions and manual approvals for critical stages[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1").
+6. **Environment Variables**: Use environment variables to manage configurations for different stages.
+7. **Artifact Management**: Use artifacts to pass build outputs between stages[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1").
+
+### Steps to Implement
+
+1. **Create a Combined Pipeline YAML File**:
+    ```yaml
+    trigger:
+      branches:
+        include:
+        - main
+
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    stages:
+      - stage: Build
+        displayName: 'Build Stage'
+        jobs:
+          - job: BuildJob
+            displayName: 'Build Job'
+            steps:
+              - script: echo "Building the application..."
+              - script: echo "Running unit tests..."
+              - script: echo "Publishing build artifacts..."
+
+      - stage: Test
+        displayName: 'Test Stage'
+        dependsOn: Build
+        jobs:
+          - job: TestJob
+            displayName: 'Test Job'
+            steps:
+              - script: echo "Deploying to TST environment..."
+              - script: echo "Running tests on TST..."
+              - script: echo "Validating TST deployment..."
+
+      - stage: Acceptance
+        displayName: 'Acceptance Stage'
+        dependsOn: Test
+        jobs:
+          - job: AcceptanceJob
+            displayName: 'Acceptance Job'
+            steps:
+              - script: echo "Deploying to ACC environment..."
+              - script: echo "Running acceptance tests..."
+              - script: echo "Manual approval required for ACC deployment..."
+              - manual: echo "Approve deployment to ACC..."
+
+      - stage: Production
+        displayName: 'Production Stage'
+        dependsOn: Acceptance
+        jobs:
+          - job: ProductionJob
+            displayName: 'Production Job'
+            steps:
+              - script: echo "Deploying to PRD environment..."
+              - script: echo "Running final tests..."
+              - script: echo "Manual approval required for PRD deployment..."
+              - manual: echo "Approve deployment to PRD..."
+    ```[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1")
+
+2. **Configure Manual Approvals**: Set up manual approvals for ACC and PRD stages to ensure proper validation[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1").
+3. **Environment Variables**: Use environment variables to manage configurations for different stages[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1").
+4. **Artifact Management**: Ensure artifacts are passed between stages correctly[43dcd9a7-70db-4a1f-b0ae-981daa162054](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/run-stages?view=azure-devops&citationMarker=43dcd9a7-70db-4a1f-b0ae-981daa162054 "1").
+
+By following these steps, you can create a more streamlined and efficient pipeline that handles both CI and CD processes seamlessly. Does this approach align with your goals?
