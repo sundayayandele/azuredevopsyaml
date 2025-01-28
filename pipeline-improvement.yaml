@@ -320,3 +320,234 @@ Would you like an example pipeline with specific details for your application?
 ========================================
 DeepSeek
 =========
+To achieve your goal of consolidating CI and CD into a single Azure Pipeline while maintaining controlled deployments to TST, ACC, and PRD, here's a structured approach with key design decisions:
+
+---
+
+### **1. Single Pipeline Structure**
+- **Stages**: Organize the pipeline into sequential stages:
+  - **CI Stage**: Build, test, and publish artifacts.
+  - **Deployment Stages**: Separate stages for TST, ACC, and PRD, each with approval gates.
+
+  ```yaml
+  stages:
+    - stage: CI
+      displayName: "Build and Test"
+      jobs:
+        - job: Build
+          steps:
+            - script: npm install && npm run build
+            - task: PublishBuildArtifacts@1
+              inputs:
+                PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+
+    - stage: Deploy_TST
+      displayName: "Deploy to TST"
+      dependsOn: CI
+      jobs:
+        - deployment: TST_Deployment
+          environment: TST
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - script: echo "Deploying to TST..."
+
+    - stage: Deploy_ACC
+      displayName: "Deploy to ACC"
+      dependsOn: Deploy_TST
+      jobs:
+        - deployment: ACC_Deployment
+          environment: ACC
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - script: echo "Deploying to ACC..."
+
+    - stage: Deploy_PRD
+      displayName: "Deploy to PRD"
+      dependsOn: Deploy_ACC
+      jobs:
+        - deployment: PRD_Deployment
+          environment: PRD
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - script: echo "Deploying to PRD..."
+  ```
+
+---
+
+### **2. Environment Strategy**
+- **Azure DevOps Environments**: 
+  - Define `TST`, `ACC`, and `PRD` as environments in Azure DevOps.
+  - Configure **approval checks** on the `ACC` and `PRD` environments (via Azure DevOps UI) to enforce manual validation.
+- **Deployment Triggers**:
+  - **Auto-trigger TST**: Automatically deploy to TST after CI succeeds.
+  - **Manual or Conditional Triggers for ACC/PRD**: Use pipeline parameters or branch filters to control deployments.
+
+---
+
+### **3. Parameterization and Conditional Execution**
+- **Runtime Parameters**: Let users choose environments during manual runs.
+  ```yaml
+  parameters:
+    - name: environments
+      type: string
+      default: 'TST'
+      values:
+        - 'TST'
+        - 'ACC'
+        - 'PRD'
+  ```
+- **Stage Conditions**: Use `condition` to control stage execution.
+  ```yaml
+  - stage: Deploy_PRD
+    condition: and(succeeded('Deploy_ACC'), eq('${{ parameters.environments }}', 'PRD'))
+  ```
+
+---
+
+### **4. Artifact Sharing**
+- **Publish Once, Reuse Everywhere**: 
+  - Publish artifacts in the CI stage.
+  - Download artifacts in deployment stages using `DownloadPipelineArtifact@2`.
+
+---
+
+### **5. Reusable Templates**
+- **Deployment Template**: Avoid redundancy with a shared template for environment deployments.
+  ```yaml
+  # templates/deploy.yml
+  parameters:
+    environment: ''
+  jobs:
+    - deployment: ${{ parameters.environment }}_Deployment
+      environment: ${{ parameters.environment }}
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - script: echo "Deploying to ${{ parameters.environment }}..."
+  ```
+- **Stage Usage**:
+  ```yaml
+  - stage: Deploy_TST
+    template: templates/deploy.yml
+    parameters:
+      environment: TST
+  ```
+
+---
+
+### **6. Branch Control**
+- **Automate Lower Environments**: Trigger TST deployments on commits to `main`.
+- **Restrict PRD Deployments**: Run PRD stages only for `main` or tagged commits.
+  ```yaml
+  trigger:
+    branches:
+      include:
+        - main
+
+  stages:
+    - stage: Deploy_PRD
+      condition: and(succeeded('Deploy_ACC'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  ```
+
+---
+
+### **7. Security and Permissions**
+- **Limit Pipeline Modifications**: Restrict YAML edits to specific users.
+- **Approval Gates**: Use Azure DevOps environment approvals for ACC/PRD.
+
+---
+
+### **8. Testing Post-Deployment**
+- **Integration Tests**: Add validation steps after deployment to TST/ACC.
+  ```yaml
+  - stage: Test_ACC
+    dependsOn: Deploy_ACC
+    jobs:
+      - job: RunTests
+        steps:
+          - script: npm run test:e2e
+  ```
+
+---
+
+### **9. Monitoring and Rollback**
+- **Post-Deployment Monitoring**: Integrate with Azure Monitor or logging tools.
+- **Manual Rollback Job**: Add a rollback task (e.g., redeploy previous version) with manual approval.
+
+---
+
+### **10. Example Final Pipeline**
+```yaml
+parameters:
+  - name: environments
+    type: string
+    default: 'TST'
+    values:
+      - 'TST'
+      - 'ACC'
+      - 'PRD'
+
+stages:
+  - stage: CI
+    jobs:
+      - job: Build
+        steps:
+          - script: npm install && npm run build
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+
+  - stage: Deploy_TST
+    dependsOn: CI
+    condition: or(eq('${{ parameters.environments }}', 'TST'), in('${{ parameters.environments }}', 'ACC', 'PRD'))
+    jobs:
+      - deployment: TST_Deployment
+        environment: TST
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                - script: echo "Deploying to TST..."
+
+  - stage: Deploy_ACC
+    dependsOn: Deploy_TST
+    condition: or(eq('${{ parameters.environments }}', 'ACC'), eq('${{ parameters.environments }}', 'PRD'))
+    jobs:
+      - deployment: ACC_Deployment
+        environment: ACC
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                - script: echo "Deploying to ACC..."
+
+  - stage: Deploy_PRD
+    dependsOn: Deploy_ACC
+    condition: eq('${{ parameters.environments }}', 'PRD')
+    jobs:
+      - deployment: PRD_Deployment
+        environment: PRD
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                - script: echo "Deploying to PRD..."
+```
+
+---
+
+### **Key Benefits**
+1. **Simplified Maintenance**: Single pipeline with reusable templates.
+2. **Controlled Deployments**: Manual approvals for ACC/PRD via Azure DevOps environments.
+3. **Flexibility**: Supports both auto-triggered (TST) and manual deployments (ACC/PRD).
+4. **Visibility**: End-to-end traceability from build to production.
