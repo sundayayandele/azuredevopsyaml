@@ -551,3 +551,239 @@ stages:
 2. **Controlled Deployments**: Manual approvals for ACC/PRD via Azure DevOps environments.
 3. **Flexibility**: Supports both auto-triggered (TST) and manual deployments (ACC/PRD).
 4. **Visibility**: End-to-end traceability from build to production.
+================≠===========≠=============
+Claude
+===≠===
+
+I'll help you design an improved Azure Pipeline that combines CI/CD while maintaining control over deployments to different environments.
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - src/*
+      - package.json
+      - package-lock.json
+
+variables:
+  nodeVersion: '16.x'
+  appName: 'frontend-app'
+  # Environment-specific variables
+  tst:
+    azureSubscription: 'TST-Subscription'
+    webAppName: '$(appName)-tst'
+  acc:
+    azureSubscription: 'ACC-Subscription'
+    webAppName: '$(appName)-acc'
+  prd:
+    azureSubscription: 'PRD-Subscription'
+    webAppName: '$(appName)-prd'
+
+stages:
+- stage: Build
+  displayName: 'Build Stage'
+  jobs:
+  - job: BuildJob
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: $(nodeVersion)
+      displayName: 'Install Node.js'
+
+    - task: Npm@1
+      inputs:
+        command: 'install'
+      displayName: 'npm install'
+
+    - task: Npm@1
+      inputs:
+        command: 'custom'
+        customCommand: 'run lint'
+      displayName: 'Run linting'
+
+    - task: Npm@1
+      inputs:
+        command: 'custom'
+        customCommand: 'run test'
+      displayName: 'Run tests'
+
+    - task: Npm@1
+      inputs:
+        command: 'custom'
+        customCommand: 'run build'
+      displayName: 'Build application'
+
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: 'build'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(appName).zip'
+      displayName: 'Archive build files'
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/$(appName).zip'
+        artifact: 'drop'
+      displayName: 'Publish build artifacts'
+
+- stage: DeployToTST
+  displayName: 'Deploy to TST'
+  dependsOn: Build
+  condition: succeeded()
+  variables:
+    - template: environments/tst-variables.yml
+  jobs:
+  - deployment: DeployTST
+    environment: TST
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: templates/deploy-steps.yml
+            parameters:
+              azureSubscription: $(tst.azureSubscription)
+              webAppName: $(tst.webAppName)
+
+- stage: DeployToACC
+  displayName: 'Deploy to ACC'
+  dependsOn: DeployToTST
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  variables:
+    - template: environments/acc-variables.yml
+  jobs:
+  - deployment: DeployACC
+    environment: ACC
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: templates/deploy-steps.yml
+            parameters:
+              azureSubscription: $(acc.azureSubscription)
+              webAppName: $(acc.webAppName)
+
+- stage: DeployToPRD
+  displayName: 'Deploy to PRD'
+  dependsOn: DeployToACC
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  variables:
+    - template: environments/prd-variables.yml
+  jobs:
+  - deployment: DeployPRD
+    environment: PRD
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: templates/deploy-steps.yml
+            parameters:
+              azureSubscription: $(prd.azureSubscription)
+              webAppName: $(prd.webAppName)
+
+# templates/deploy-steps.yml
+parameters:
+  - name: azureSubscription
+    type: string
+  - name: webAppName
+    type: string
+
+steps:
+- task: DownloadPipelineArtifact@2
+  inputs:
+    artifact: 'drop'
+    path: $(Pipeline.Workspace)
+
+- task: AzureWebApp@1
+  inputs:
+    azureSubscription: ${{ parameters.azureSubscription }}
+    appName: ${{ parameters.webAppName }}
+    package: '$(Pipeline.Workspace)/$(appName).zip'
+    deploymentMethod: 'auto'
+
+Let me explain the key design decisions and improvements in this pipeline:
+
+1. **Combined Pipeline with Stage Separation**:
+   - Single pipeline file that handles both CI and CD
+   - Clear stage separation: Build → TST → ACC → PRD
+   - Each stage has its own conditions and dependencies
+
+2. **Environment Protection**:
+   - Use of environments feature for deployment approvals
+   - Different subscription configurations for each environment
+   - Template-based variable management for each environment
+
+3. **Deployment Control**:
+   - Automatic deployment to TST after successful build
+   - Manual approval gates can be configured for ACC and PRD
+   - Branch-based conditions for production deployments
+
+4. **Code Quality**:
+   - Integrated linting and testing in the build stage
+   - Fail-fast approach: subsequent stages only run if previous ones succeed
+
+5. **Reusability and Maintenance**:
+   - Templated deployment steps to avoid repetition
+   - Environment-specific variables in separate files
+   - Consistent naming conventions
+
+6. **Security and Access Control**:
+   - Separate Azure subscriptions for each environment
+   - Environment-specific service connections
+   - Branch policies can be integrated with deployment conditions
+
+To implement this improved pipeline:
+
+1. Create environments in Azure DevOps:
+   ```
+   TST
+   ACC
+   PRD
+   ```
+
+2. Set up approval gates:
+   - TST: Auto-approve
+   - ACC: Optional approval
+   - PRD: Required approval
+
+3. Configure branch policies:
+   - Protect main branch
+   - Require pull request reviews
+   - Enable build validation
+
+4. Create environment-specific variable files:
+   ```
+   environments/
+     tst-variables.yml
+     acc-variables.yml
+     prd-variables.yml
+   ```
+
+Additional improvements you might consider:
+
+1. **Automated Testing**:
+   - Add integration tests
+   - Include security scanning
+   - Implement smoke tests post-deployment
+
+2. **Performance Optimization**:
+   - Cache npm dependencies
+   - Parallel job execution where possible
+   - Conditional task execution
+
+3. **Monitoring and Feedback**:
+   - Add deployment markers to monitoring
+   - Implement automated rollback
+   - Include status notifications
+
+4. **Quality Gates**:
+   - Code coverage thresholds
+   - Security scan results
+   - Performance benchmarks
+
+Would you like me to expand on any of these aspects or provide more specific implementation details for any particular feature?
