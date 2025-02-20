@@ -5,15 +5,3 @@ https://www.axelos.com/certifications/propath/prince2-project-management/prince2
 
 
 
-- script: |
-    echo "##vso[task.setvariable variable=PAT_TOKEN]$(System.AccessToken)"
-  displayName: "Set PAT Token"
-
-
-
-
-pathToken = System.getenv("PAT_TOKEN"); // Fetch from environment variable
-if (pathToken == null || pathToken.isEmpty()) {
-    pathToken = System.getProperty("pat.token", "");
-}
-LOG.info("VALUE: {}", pathToken);
