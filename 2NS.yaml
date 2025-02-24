@@ -1,6 +1,41 @@
 
 steps:
 - powershell: |
+    # Condition: Only trigger if this is the main branch
+    if ("$(Build.SourceBranch)" -eq "refs/heads/main") {
+      $org = "your-organization-name"  # Explicitly define your Azure DevOps org name
+      $project = "$(System.TeamProject)"  # Current project (or hardcode the target project)
+      $url = "https://dev.azure.com/$org/$project/_apis/build/builds?api-version=7.1-preview.1"
+
+      # Define parameters (supports strings, booleans, etc.)
+      $params = @{
+        "Param1" = "value1"
+        "Param2" = "value2"
+        "FlagParam" = $true
+      }
+
+      $body = @{
+        definition = @{ id = 9999 }
+        parameters = ($params | ConvertTo-Json -Compress)
+      } | ConvertTo-Json -Depth 10
+
+      $headers = @{
+        Authorization = "Bearer $(System.AccessToken)"
+        "Content-Type" = "application/json"
+      }
+
+      # Trigger the pipeline
+      Invoke-RestMethod -Uri $url -Method Post -Headers $headers -Body $body
+    }
+  displayName: 'Trigger Pipeline (Azure DevOps Services)'
+  condition: succeeded()  # Run only if previous steps succeed
+
+
+
+
++±++++++++++++
+steps:
+- powershell: |
     # Only run this step if a condition is met (e.g., branch is "main")
     if ("$(Build.SourceBranch)" -eq "refs/heads/main") {
       $org = "$(System.TeamFoundationCollectionUri)".Split('/')[2]  # Extract org from pipeline variable
