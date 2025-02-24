@@ -1,5 +1,40 @@
 trigger: none  # This pipeline should not trigger automatically
 
+parameters:
+  environment: 'production'
+  deploymentRegion: 'us-east'
+  ns1: false
+  ns2: false
+
+stages:
+  - ${{ if eq(parameters.ns1, true) }}:
+      - stage: TriggerPower1
+        displayName: "Trigger Power1 Pipeline"
+        jobs:
+          - job: TriggerPower1Job
+            steps:
+              - script: echo "##vso[build.queue name=Power1; parameters.environment=${{ parameters.environment }}; parameters.deploymentRegion=${{ parameters.deploymentRegion }}]"
+
+  - ${{ if eq(parameters.ns2, true) }}:
+      - stage: TriggerPower2
+        displayName: "Trigger Power2 Pipeline"
+        jobs:
+          - job: TriggerPower2Job
+            steps:
+              - script: echo "##vso[build.queue name=Power2; parameters.environment=${{ parameters.environment }}; parameters.deploymentRegion=${{ parameters.deploymentRegion }}]"
+
+
+
+
+
+
+
+
+
+---------------------------------------
+
+trigger: none  # This pipeline should not trigger automatically
+
 resources:
   repositories:
     - repository: self  # This tells Azure DevOps to use the same repository
