@@ -1,3 +1,31 @@
+trigger: none  # Do not trigger automatically
+
+parameters:
+  environment: 'production'
+  deploymentRegion: 'us-east'
+  ns1: false
+  ns2: false
+
+stages:
+  - stage: TriggerPowerPipeline
+    displayName: "Trigger Power Pipeline Twice"
+    jobs:
+      - job: TriggerPowerJob
+        steps:
+          - ${{ if eq(parameters.ns1, true) }}:
+              - script: echo "##vso[build.queue name=Power; parameters.environment=ns1; parameters.deploymentRegion=${{ parameters.deploymentRegion }}]"
+                displayName: "Trigger Power Pipeline with ns1"
+
+          - ${{ if eq(parameters.ns2, true) }}:
+              - script: echo "##vso[build.queue name=Power; parameters.environment=ns2; parameters.deploymentRegion=${{ parameters.deploymentRegion }}]"
+                displayName: "Trigger Power Pipeline with ns2"
+
+
+
+
+------±++++++
+
+
 trigger: none  # This pipeline should not trigger automatically
 
 parameters:
