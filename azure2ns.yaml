@@ -1,0 +1,63 @@
+trigger: none  # The orchestrator does not trigger automatically
+
+parameters:
+  environment: 'production'
+  deploymentRegion: 'us-east'
+  ns1: false
+  ns2: false
+
+variables:
+  azureDevOpsOrgUrl: "https://dev.azure.com/YourOrganization"
+  projectName: "YourProject"
+  personalAccessToken: "$(PAT_TOKEN)"  # Store this securely in Azure DevOps
+
+stages:
+  - ${{ if eq(parameters.ns1, true) }}:
+      - stage: TriggerPower1
+        displayName: "Trigger Power1 Pipeline"
+        jobs:
+          - job: TriggerPower1Job
+            steps:
+              - task: PowerShell@2
+                displayName: "Trigger Power1 Pipeline via REST API"
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    $uri = "$(azureDevOpsOrgUrl)/$(projectName)/_apis/build/builds?api-version=6.0"
+                    $body = @{
+                      definition = @{ id = 1 }  # Change '1' to Power1 pipeline ID
+                      sourceBranch = "refs/heads/main"
+                      parameters = "{ \"environment\": \"${{ parameters.environment }}\", \"deploymentRegion\": \"${{ parameters.deploymentRegion }}\" }"
+                    } | ConvertTo-Json -Depth 10
+                    
+                    $headers = @{
+                      Authorization = "Basic $(ConvertTo-Base64String (\":$(personalAccessToken)\"))"
+                      "Content-Type" = "application/json"
+                    }
+                    
+                    Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $body
+
+  - ${{ if eq(parameters.ns2, true) }}:
+      - stage: TriggerPower2
+        displayName: "Trigger Power2 Pipeline"
+        jobs:
+          - job: TriggerPower2Job
+            steps:
+              - task: PowerShell@2
+                displayName: "Trigger Power2 Pipeline via REST API"
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    $uri = "$(azureDevOpsOrgUrl)/$(projectName)/_apis/build/builds?api-version=6.0"
+                    $body = @{
+                      definition = @{ id = 2 }  # Change '2' to Power2 pipeline ID
+                      sourceBranch = "refs/heads/main"
+                      parameters = "{ \"environment\": \"${{ parameters.environment }}\", \"deploymentRegion\": \"${{ parameters.deploymentRegion }}\" }"
+                    } | ConvertTo-Json -Depth 10
+                    
+                    $headers = @{
+                      Authorization = "Basic $(ConvertTo-Base64String (\":$(personalAccessToken)\"))"
+                      "Content-Type" = "application/json"
+                    }
+                    
+                    Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $body
