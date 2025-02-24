@@ -1,3 +1,41 @@
+trigger: none  # This pipeline should not trigger automatically
+
+resources:
+  repositories:
+    - repository: self  # This tells Azure DevOps to use the same repository
+
+parameters:
+  environment: 'production'
+  deploymentRegion: 'us-east'
+
+stages:
+  - stage: TriggerPower1
+    displayName: "Trigger Power1 Pipeline"
+    jobs:
+      - job: TriggerPower1Job
+        steps:
+          - script: echo "Triggering Power1 Pipeline"
+          - script: |
+              echo "##vso[build.queue name=power1.yaml;parameters.environment=${{ parameters.environment }};parameters.deploymentRegion=${{ parameters.deploymentRegion }}]"
+  
+  - stage: TriggerPower2
+    displayName: "Trigger Power2 Pipeline"
+    dependsOn: TriggerPower1  # Ensure Power2 runs only after Power1
+    jobs:
+      - job: TriggerPower2Job
+        steps:
+          - script: echo "Triggering Power2 Pipeline"
+          - script: |
+              echo "##vso[build.queue name=power2.yaml;parameters.environment=${{ parameters.environment }};parameters.deploymentRegion=${{ parameters.deploymentRegion }}]"
+
+
+
+
+
+
+
+-----------------------------+
+
 trigger: none  # The orchestrator does not trigger automatically
 
 resources:
