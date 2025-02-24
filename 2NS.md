@@ -1,3 +1,45 @@
+trigger: none  # The orchestrator does not trigger automatically
+
+resources:
+  pipelines:
+    - pipeline: Power1Pipeline
+      source: Power1
+      trigger: none  # Ensure this pipeline doesn't trigger automatically
+
+    - pipeline: Power2Pipeline
+      source: Power2
+      trigger: none  # Ensure this pipeline doesn't trigger automatically
+
+parameters:
+  environment: 'production'
+  deploymentRegion: 'us-east'
+
+stages:
+  - stage: TriggerPower1
+    displayName: "Trigger Power1 Pipeline"
+    jobs:
+      - job: TriggerPower1Job
+        steps:
+          - script: echo "Triggering Power1 Pipeline"
+          - script: |
+              echo "##vso[build.queue name=Power1;parameters.environment=${{ parameters.environment }};parameters.deploymentRegion=${{ parameters.deploymentRegion }}]"
+  
+  - stage: TriggerPower2
+    displayName: "Trigger Power2 Pipeline"
+    dependsOn: TriggerPower1
+    jobs:
+      - job: TriggerPower2Job
+        steps:
+          - script: echo "Triggering Power2 Pipeline"
+          - script: |
+              echo "##vso[build.queue name=Power2;parameters.environment=${{ parameters.environment }};parameters.deploymentRegion=${{ parameters.deploymentRegion }}]"
+
+
+
+
+---------------------------
+
+
 # orchestrator.yaml - Pipeline to run power1.yaml and power2.yaml using REST API
 
 trigger: none # Manual trigger only
