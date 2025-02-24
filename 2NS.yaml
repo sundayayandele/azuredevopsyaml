@@ -1,4 +1,31 @@
+steps:
+- bash: |
+    if [[ "$(Build.SourceBranch)" == "refs/heads/main" ]]; then
+      org="your-organization-name"  # Your Azure DevOps org name
+      project="$(System.TeamProject)"
+      url="https://dev.azure.com/$org/$project/_apis/build/builds?api-version=7.1-preview.1"
 
+      # Define parameters as a JSON string
+      params='{"Param1":"value1", "Param2":"value2", "FlagParam":true}'
+
+      # Use jq to format the body
+      body=$(jq -n \
+        --argjson defId 9999 \
+        --argjson params "$params" \
+        '{definition: {id: $defId}, parameters: $params}')
+
+      curl -X POST "$url" \
+        -H "Authorization: Bearer $(System.AccessToken)" \
+        -H "Content-Type: application/json" \
+        -d "$body"
+    fi
+  displayName: 'Trigger Pipeline (Bash)'
+
+
+
+
+
++++++++±+±+
 steps:
 - powershell: |
     # Condition: Only trigger if this is the main branch
