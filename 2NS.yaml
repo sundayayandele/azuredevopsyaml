@@ -1,3 +1,59 @@
+
+trigger: none  # Ensure it's not triggered automatically
+
+parameters:
+  - name: myParam
+    type: string
+    default: "defaultValue"
+
+jobs:
+  - job: TriggerMypipe
+    steps:
+      - script: |
+          echo "Running mytrigger with parameter $(myParam)"
+
+          # Triggering mypipe pipeline using the Azure DevOps REST API
+          $uri = "$(System.CollectionUri)$(System.TeamProject)/_apis/pipelines/9999/runs?api-version=6.0-preview.1"
+
+          $body = @{
+              "resources" = @{
+                  "pipeline" = @{
+                      "id" = 9999  # Build Definition ID
+                      "parameters" = @{
+                          "myParam" = "$(myParam)"
+                      }
+                  }
+              }
+          } | ConvertTo-Json -Depth 10
+
+          Write-Host "Triggering pipeline 9999 with body: $body"
+
+          # Define the headers
+          $headers = @{
+              "Authorization" = "Bearer $(System.AccessToken)"
+              "Content-Type" = "application/json"
+          }
+
+          # Trigger the pipeline via REST API
+          Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $body
+        env:
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+
+
+
+
+
+
+
+
+
+
+-------------;;
+
+
+
+
 trigger: none  # Do not trigger automatically
 
 parameters:
