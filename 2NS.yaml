@@ -1,4 +1,21 @@
 
+steps:
+- task: TriggerBuild@3
+  inputs:
+    azureDevOpsConnection: 'https://dev.azure.com/your-organization'
+    project: 'Target-Project-Name'
+    buildDefinitionId: 9999
+    queueBuildForUserThatTriggeredBuild: false
+    authenticationMethod: 'OAuth Token'
+    password: $(System.AccessToken)
+    # Define parameters as a JSON string
+    parameters: '{"Param1":"value1", "Param2":"value2", "FlagParam":true}' 
+
+
+
+
+
+-------;;;;;
 trigger: none  # Ensure it's not triggered automatically
 
 parameters:
