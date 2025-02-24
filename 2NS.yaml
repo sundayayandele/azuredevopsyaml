@@ -1,5 +1,47 @@
 
 steps:
+- powershell: |
+    # Only run this step if a condition is met (e.g., branch is "main")
+    if ("$(Build.SourceBranch)" -eq "refs/heads/main") {
+      $org = "$(System.TeamFoundationCollectionUri)".Split('/')[2]  # Extract org from pipeline variable
+      $project = "$(System.TeamProject)"
+      $url = "https://dev.azure.com/$org/$project/_apis/build/builds?api-version=6.0"
+
+      # Define parameters as a PowerShell hashtable
+      $params = @{
+        "Param1" = "value1"
+        "Param2" = "value2"
+        "FlagParam" = $true
+      }
+
+      $body = @{
+        definition = @{ id = 9999 }
+        parameters = ($params | ConvertTo-Json -Compress)  # Convert to JSON string
+      } | ConvertTo-Json -Depth 10
+
+      $headers = @{
+        Authorization = "Bearer $(System.AccessToken)"
+        "Content-Type" = "application/json"
+      }
+
+      # Trigger the build
+      Invoke-RestMethod -Uri $url -Method Post -Headers $headers -Body $body
+    } else {
+      Write-Host "Skipping trigger for pipeline 9999 (not on main branch)."
+    }
+  displayName: 'Trigger Pipeline 9999 (Conditional)'
+  condition: succeeded()  # Optional: Only run if previous steps succeeded
+
+
+
+
+
+
+
+
+
+---------_;;;;;;;;;;
+steps:
 - task: TriggerBuild@3
   inputs:
     azureDevOpsConnection: 'https://dev.azure.com/your-organization'
@@ -7,7 +49,7 @@ steps:
     buildDefinitionId: 9999
     queueBuildForUserThatTriggeredBuild: false
     authenticationMethod: 'OAuth Token'
-    password: $(System.AccessToken)
+    password: $(System.Accessoken)
     # Define parameters as a JSON string
     parameters: '{"Param1":"value1", "Param2":"value2", "FlagParam":true}' 
 
