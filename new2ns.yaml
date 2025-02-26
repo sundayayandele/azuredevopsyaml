@@ -1,0 +1,130 @@
+Yes! If Invoke-RestMethod is causing issues, you can use alternative methods to make HTTP requests in PowerShell.
+
+
+---
+
+🔹 Alternative 1: Using Invoke-WebRequest
+
+Invoke-WebRequest is a more basic way to send HTTP requests, but it works similarly.
+
+✅ Example: Using Invoke-WebRequest Instead of Invoke-RestMethod
+
+$org = "YourOrganization"
+$project = "YourProject"
+$pipelineId = 123  # Replace with your actual Pipeline ID
+$uri = "https://dev.azure.com/$org/$project/_apis/pipelines/$pipelineId/runs?api-version=7.1-preview.1"
+
+# Authentication (Use System.AccessToken inside Azure DevOps)
+$headers = @{
+    Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+    "Content-Type" = "application/json"
+}
+
+# Request body
+$body = @{
+    resources = @{
+        repositories = @{
+            self = @{
+                refName = "refs/heads/main"
+            }
+        }
+    }
+    templateParameters = @{
+        deployNamespace = "abc1"
+        specified_build = "none"
+    }
+} | ConvertTo-Json -Depth 10
+
+# Convert body to UTF-8 bytes
+$bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+
+# Make the request
+$response = Invoke-WebRequest -Uri $uri -Method Post -Headers $headers -Body $bodyBytes -ContentType "application/json"
+
+# Output response
+$response.Content
+
+
+---
+
+🔹 Alternative 2: Using System.Net.Http.HttpClient
+
+For a more robust solution, use System.Net.Http.HttpClient:
+
+$org = "YourOrganization"
+$project = "YourProject"
+$pipelineId = 123
+$uri = "https://dev.azure.com/$org/$project/_apis/pipelines/$pipelineId/runs?api-version=7.1-preview.1"
+
+# Authentication
+$token = $env:SYSTEM_ACCESSTOKEN  # Use a PAT if running locally
+$headers = @{
+    Authorization = "Bearer $token"
+    "Content-Type" = "application/json"
+}
+
+# Request body
+$body = @{
+    resources = @{
+        repositories = @{
+            self = @{
+                refName = "refs/heads/main"
+            }
+        }
+    }
+    templateParameters = @{
+        deployNamespace = "abc1"
+        specified_build = "none"
+    }
+} | ConvertTo-Json -Depth 10
+
+# Create HttpClient
+$httpClient = New-Object System.Net.Http.HttpClient
+$httpClient.DefaultRequestHeaders.Authorization = New-Object System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", $token)
+$httpClient.DefaultRequestHeaders.Accept.Add("application/json")
+
+# Convert body to StringContent
+$stringContent = New-Object System.Net.Http.StringContent($body, [System.Text.Encoding]::UTF8, "application/json")
+
+# Send request
+$response = $httpClient.PostAsync($uri, $stringContent).Result
+
+# Get response content
+$responseContent = $response.Content.ReadAsStringAsync().Result
+Write-Host $responseContent
+
+
+---
+
+🔹 Alternative 3: Using cURL (if running in a Bash Shell)
+
+If you have cURL installed (or using Git Bash, WSL, or Linux):
+
+curl -X POST "https://dev.azure.com/YourOrganization/YourProject/_apis/pipelines/123/runs?api-version=7.1-preview.1" \
+     -H "Authorization: Bearer $SYSTEM_ACCESSTOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "resources": {
+             "repositories": {
+               "self": {
+                 "refName": "refs/heads/main"
+               }
+             }
+           },
+           "templateParameters": {
+             "deployNamespace": "abc1",
+             "specified_build": "none"
+           }
+         }'
+
+
+---
+
+✅ Summary
+
+✔ Use Invoke-WebRequest if Invoke-RestMethod isn't working.
+✔ Use System.Net.Http.HttpClient for more control over HTTP requests.
+✔ Use cURL in Bash environments.
+
+Try these alternatives and let me know if the issue persists! 🚀
+
