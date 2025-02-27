@@ -1,3 +1,76 @@
+import os
+import base64
+import json
+import requests
+
+# Azure DevOps details
+azure_devops_org = "YourOrganization"
+project_name = "YourProject"
+pipeline_id = 15  # Replace with the actual pipeline definition ID
+
+# API URL to trigger the pipeline
+url = f"https://dev.azure.com/{azure_devops_org}/{project_name}/_apis/build/builds?api-version=6.0"
+
+# Get the System.AccessToken from environment variables
+pat_token = os.getenv("SYSTEM_ACCESSTOKEN")  # Azure DevOps automatically provides this in pipelines
+
+if not pat_token:
+    print("Error: SYSTEM_ACCESSTOKEN is not set. Make sure 'Allow scripts to access the OAuth token' is enabled.")
+    exit(1)
+
+# Encode the token in Base64 for authentication
+auth_header = base64.b64encode(f":{pat_token}".encode()).decode()
+
+# Define pipeline parameters
+params = {
+    "environment": "production",
+    "deploymentRegion": "us-east"
+}
+
+# Request body
+body = {
+    "definition": {"id": pipeline_id},
+    "sourceBranch": "refs/heads/main",
+    "parameters": json.dumps(params)
+}
+
+# Headers for authentication
+headers = {
+    "Authorization": f"Basic {auth_header}",
+    "Content-Type": "application/json"
+}
+
+# Trigger the pipeline
+response = requests.post(url, headers=headers, json=body)
+
+# Print response
+if response.status_code == 201:
+    print("✅ Pipeline triggered successfully!")
+else:
+    print(f"❌ Error triggering pipeline: {response.status_code}, {response.text}")
+=========
+stages:
+  - stage: TriggerPipeline
+    jobs:
+      - job: TriggerJob
+        steps:
+          - checkout: none
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "3.x"
+
+          - script: |
+              python trigger_pipeline.py
+            displayName: "Run Python script to trigger pipeline"
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+
+
+
+
+
+==============================
 trigger: none  # The orchestrator does not trigger automatically
 
 parameters:
