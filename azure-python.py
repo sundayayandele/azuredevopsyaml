@@ -3,7 +3,7 @@
     ‘ABCProductDeterminationAPI’
     ‘ABCPaymentAuxiliaryAPI’
     ‘ABCHello’
-I want to use ['run_test_acc_dcr', 'run_test_acc_wpr']  for only the above mentioned applications while for the other I  want to use full_ft_enforce_stage’ in place of ['run_test_acc_dcr', 'run_test_acc_wpr']for the below python script. Kindly assist with a revised python code:
+I want to use ['run_test_acc_dc1', 'run_test_acc_dc2']  for only the above mentioned applications while for the other I  want to use full_ft_enforce_stage’ in place of ['run_test_acc_dcr', 'run_test_acc_wpr']for the below python script. Kindly assist with a revised python code:
 
 import requests
 import json
@@ -66,7 +66,7 @@ def main():
         # Define the time threshold
         thirty_days_ago = datetime.now() - timedelta(days=30)
         for time in json_object_2['records']:
-          if time['identifier'] in ['run_test_acc_dcr', 'run_test_acc_wpr'] and time['result'] == 'succeeded' and time['state'] =='completed' :          
+          if time['identifier'] in ['run_test_acc_dc1', 'run_test_acc_dc2'] and time['result'] == 'succeeded' and time['state'] =='completed' :          
             found='yes'
       except:
         print("An exception occurred")
