@@ -1,3 +1,45 @@
+
+trigger:
+- main
+
+variables:
+  # Default/fallback value (optional)
+  serviceConnection: ''
+
+stages:
+- stage: LoadVariables
+  jobs:
+  - job: ReadFile
+    steps:
+    - task: Bash@3
+      name: readServiceConnection
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Extract the value from the file
+          value=$(grep 'serviceConnection' Oba/vfiles/serviceconnection/dev-dcr-namespace | cut -d '=' -f2 | xargs)
+          echo "##vso[task.setvariable variable=serviceConnection]$value"
+
+- stage: Deploy
+  dependsOn: LoadVariables
+  jobs:
+  - job: DeployJob
+    steps:
+    - template: /application/template.yml@abc
+      parameters:
+        action: 'deploy'
+        envProp:
+        - envType: 'dev'
+          envDcr: 'dcr'
+          serviceConnection: $(serviceConnection)
+        deployConfidence: false
+
+
+
+
+
+###############£#£
+
 - template: /application/template.yml@abc parameters: action: 'deploy' envProp: - envType: 'dev' envDcr: 'dcr' serviceConnection: deployConfidence: false My serviceConnection is saved in a file on the same repo as the main repo in the path /Oba/vfiles/serviceconnection/dev-dcr-namespace as a variable called serviceConnection, how can I fill the value for the serviceConnection in the template above.
 ============================
 trigger: none  # The orchestrator does not trigger automatically
