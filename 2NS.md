@@ -1,4 +1,57 @@
+trigger:
+- main
 
+parameters:
+  - name: envProp
+    type: object
+    default:
+      - envType: 'dev'
+        envDcr: 'dcr'
+
+variables:
+  serviceConnection: ''
+
+stages:
+- stage: LoadServiceConnection
+  jobs:
+  - job: SetServiceConnection
+    steps:
+    - ${{ each env in parameters.envProp }}:
+      - script: |
+          echo "Reading serviceConnection from envType: '${{ env.envType }}', envDcr: '${{ env.envDcr }}'"
+          filePath="Oba/vfiles/serviceconnection/${{ env.envType }}-${{ env.envDcr }}-namespace"
+          echo "File path: $filePath"
+
+          if [[ -f "$filePath" ]]; then
+            value=$(grep 'serviceConnection' "$filePath" | cut -d '=' -f2 | xargs)
+            echo "Found serviceConnection: $value"
+            echo "##vso[task.setvariable variable=serviceConnection;isOutput=true]$value"
+          else
+            echo "File not found: $filePath"
+            exit 1
+          fi
+        name: readConnection
+        shell: bash
+
+- stage: Deploy
+  dependsOn: LoadServiceConnection
+  variables:
+    serviceConnection: $[ dependencies.LoadServiceConnection.outputs['SetServiceConnection.readConnection.serviceConnection'] ]
+  jobs:
+  - job: DeployJob
+    steps:
+    - template: /application/template.yml@abc
+      parameters:
+        action: 'deploy'
+        envProp:
+        - envType: ${{ parameters.envProp[0].envType }}
+          envDcr: ${{ parameters.envProp[0].envDcr }}
+          serviceConnection: $(serviceConnection)
+        deployConfidence: false
+
+
+
+####################£#£££
 trigger:
 - main
 
